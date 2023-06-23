@@ -13,4 +13,4 @@ def test_install_one_kernel(shell):
     # replace url in yum.repos.d rhel repo
     original_url = "baseurl = https://rhsm-pulp.corp.redhat.com/content/dist/rhel/server/7/\$releasever/\$basearch/os/"
     new_url = "baseurl=https://rhsm-pulp.corp.redhat.com/content/dist/rhel/server/7/7.9/x86_64/os/"
-    shell('sed -i "s+{}+{}+g" /etc/yum.repos.d/rhel7.repo'.format(original_url, new_url))
+    shell(f'sed -i "s+{original_url}+{new_url}+g" /etc/yum.repos.d/rhel7.repo')

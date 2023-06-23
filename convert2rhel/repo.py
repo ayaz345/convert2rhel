@@ -43,20 +43,20 @@ def get_rhel_repoids():
     else:
         repos_needed = system_info.default_rhsm_repoids
 
-    loggerinst.info("RHEL repository IDs to enable: %s" % ", ".join(repos_needed))
+    loggerinst.info(f'RHEL repository IDs to enable: {", ".join(repos_needed)}')
 
     return repos_needed
 
 
 def backup_yum_repos():
     """Backup .repo files in /etc/yum.repos.d/ so the repositories can be restored on rollback."""
-    loggerinst.info("Backing up .repo files from %s." % DEFAULT_YUM_REPOFILE_DIR)
+    loggerinst.info(f"Backing up .repo files from {DEFAULT_YUM_REPOFILE_DIR}.")
     repo_files_backed_up = False
     for repo in os.listdir(DEFAULT_YUM_REPOFILE_DIR):
         if repo.endswith(".repo") and repo != "redhat.repo":
             repo_path = os.path.join(DEFAULT_YUM_REPOFILE_DIR, repo)
             shutil.copy2(repo_path, BACKUP_DIR)
-            loggerinst.debug("Backed up .repo file: %s" % repo_path)
+            loggerinst.debug(f"Backed up .repo file: {repo_path}")
             repo_files_backed_up = True
     if not repo_files_backed_up:
         loggerinst.info("No .repo files backed up.")
@@ -72,7 +72,7 @@ def restore_yum_repos():
             repo_path_from = os.path.join(BACKUP_DIR, repo)
             repo_path_to = os.path.join("/etc/yum.repos.d/", repo)
             shutil.move(repo_path_from, repo_path_to)
-            loggerinst.info("Restored .repo file: %s" % (repo))
+            loggerinst.info(f"Restored .repo file: {repo}")
             repo_has_restored = True
 
     if not repo_has_restored:
@@ -91,17 +91,9 @@ def get_hardcoded_repofiles_dir():
     """
     hardcoded_repofiles = os.path.join(
         DATA_DIR,
-        "repos/%s-%s.%s"
-        % (
-            system_info.id,
-            system_info.version.major,
-            system_info.version.minor,
-        ),
+        f"repos/{system_info.id}-{system_info.version.major}.{system_info.version.minor}",
     )
-    if os.path.exists(hardcoded_repofiles):
-        return hardcoded_repofiles
-
-    return None
+    return hardcoded_repofiles if os.path.exists(hardcoded_repofiles) else None
 
 
 def backup_varsdir():
@@ -121,17 +113,17 @@ def backup_varsdir():
             if not os.path.exists(backup_dir):
                 os.makedirs(backup_dir)
             shutil.copy2(variable_path, backup_dir)
-            loggerinst.debug("Backed up variable file: %s" % variable_path)
+            loggerinst.debug(f"Backed up variable file: {variable_path}")
             variable_files_backed_up = True
 
         if not variable_files_backed_up:
             loggerinst.info("No variables files backed up.")
 
-    loggerinst.info("Backing up variables files from %s." % DEFAULT_YUM_VARS_DIR)
+    loggerinst.info(f"Backing up variables files from {DEFAULT_YUM_VARS_DIR}.")
     _backup_variables(path=DEFAULT_YUM_VARS_DIR)
 
     if system_info.version.major == 8:
-        loggerinst.info("Backing up variables files from %s." % DEFAULT_DNF_VARS_DIR)
+        loggerinst.info(f"Backing up variables files from {DEFAULT_DNF_VARS_DIR}.")
         _backup_variables(path=DEFAULT_DNF_VARS_DIR)
     return
 
@@ -157,7 +149,7 @@ def restore_varsdir():
             variable_path_to = os.path.join(path, variable)
 
             shutil.move(variable_path_from, variable_path_to)
-            loggerinst.info("Restored variable file: %s" % (variable))
+            loggerinst.info(f"Restored variable file: {variable}")
             variables_is_restored = True
 
         if not variables_is_restored:

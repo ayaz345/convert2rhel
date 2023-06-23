@@ -181,16 +181,14 @@ class TestDnfPackageDownloadCallback:
     def test_end_multiple_packages(
         self, packages, status, err_msg, total_files, total_size, total_drpms, expected_message, caplog
     ):
-        package_count = 1
         instance = PackageDownloadCallback()
-        for package in packages:
+        for package_count, package in enumerate(packages, start=1):
             payload = PackageDownloadPayload(package, 1000)
             instance.start(total_files, total_size, total_drpms)
             instance.end(payload=payload, status=status, err_msg=err_msg)
 
             expected = expected_message % (package_count, total_files, package)
             assert expected in caplog.records[-1].message
-            package_count += 1
 
     def test_end_no_status_and_not_enough_files(self, caplog):
         instance = PackageDownloadCallback()

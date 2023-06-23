@@ -59,8 +59,9 @@ def _resolve_yum_problematic_dependencies(output):
     else:
         loggerinst.debug("Dependency resolution failed with no detailed message reported by yum.")
     for package in output:
-        resolve_error = re.findall(EXTRACT_PKG_FROM_YUM_DEPSOLVE, str(package))
-        if resolve_error:
+        if resolve_error := re.findall(
+            EXTRACT_PKG_FROM_YUM_DEPSOLVE, str(package)
+        ):
             # The first string to appear in index 0 is the package we want.
             packages_to_remove.append(str(resolve_error[0]).replace(" ", ""))
 
@@ -154,7 +155,7 @@ class YumTransactionHandler(TransactionHandlerBase):
             for repo in enabled_repos:
                 self._base.repos.enableRepo(repo)
         except pkgmanager.Errors.RepoError as e:
-            loggerinst.debug("Loading repository metadata failed: %s" % e)
+            loggerinst.debug(f"Loading repository metadata failed: {e}")
             loggerinst.critical("Failed to populate repository metadata.")
 
     def _perform_operations(self):
@@ -237,19 +238,13 @@ class YumTransactionHandler(TransactionHandlerBase):
             # that it reached the limit for depsolving, and the actual dependencies
             # that caused an problem.
             # If we reach the limit for depsolving, just return False.
-            if "Depsolving loop limit reached" in msg:
-                return False
-            # If the message is the not the depsolving limit, then we need to
-            # resolve the problematic dependencies.
-            else:
+            if "Depsolving loop limit reached" not in msg:
                 # We want to fail earlier in the process, so let's check for this
                 # only when testing the transaction.
                 if validate_transaction:
                     _resolve_yum_problematic_dependencies(msg)
 
-                # Return False anyway because the depsolving failed.
-                return False
-
+            return False
         return True
 
     def _process_transaction(self, validate_transaction):

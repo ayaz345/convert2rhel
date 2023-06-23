@@ -45,7 +45,6 @@ class _ActionForTesting(actions.Action):
 
     def run(self):
         super(_ActionForTesting, self).run()
-        pass
 
 
 class TestAction:
@@ -103,17 +102,19 @@ class TestAction:
 
     def test_no_duplicate_ids(self):
         """Test that each Action has its own unique id."""
-        computed_actions = actions.get_actions(actions.__path__, actions.__name__ + ".")
+        computed_actions = actions.get_actions(
+            actions.__path__, f"{actions.__name__}."
+        )
 
         action_id_locations = defaultdict(list)
         for action in computed_actions:
             action_id_locations[action.id].append(str(action))
 
-        dupe_actions = []
-        for action_id, locations in action_id_locations.items():
-            if len(locations) > 1:
-                dupe_actions.append("%s is present in more than one location: %s" % (action_id, ", ".join(locations)))
-
+        dupe_actions = [
+            f'{action_id} is present in more than one location: {", ".join(locations)}'
+            for action_id, locations in action_id_locations.items()
+            if len(locations) > 1
+        ]
         assert not dupe_actions, "\n".join(dupe_actions)
 
     def test_actions_cannot_be_run_twice(self):
@@ -138,7 +139,10 @@ class TestGetActions:
             for directory in dirnames:
                 # Add to the actions that the production code finds here as it is non-recursive
                 computed_actions.extend(
-                    actions.get_actions([os.path.join(rootdir, directory)], "%s.%s." % (actions.__name__, directory))
+                    actions.get_actions(
+                        [os.path.join(rootdir, directory)],
+                        f"{actions.__name__}.{directory}.",
+                    )
                 )
 
             for filename in (os.path.join(rootdir, filename) for filename in filenames):
@@ -151,7 +155,9 @@ class TestGetActions:
 
     def test_get_actions_no_dupes(self):
         """Test that there are no duplicates in the list of returned Actions."""
-        computed_actions = actions.get_actions(actions.__path__, actions.__name__ + ".")
+        computed_actions = actions.get_actions(
+            actions.__path__, f"{actions.__name__}."
+        )
 
         assert len(computed_actions) == len(frozenset(computed_actions))
 
@@ -185,7 +191,10 @@ class TestGetActions:
         test_data = os.path.join(data_dir, test_dir_name)
         computed_action_names = sorted(
             m.__name__
-            for m in actions.get_actions([test_data], "convert2rhel.unit_tests.actions.data.%s." % test_dir_name)
+            for m in actions.get_actions(
+                [test_data],
+                f"convert2rhel.unit_tests.actions.data.{test_dir_name}.",
+            )
         )
         assert computed_action_names == sorted(expected_action_names)
 

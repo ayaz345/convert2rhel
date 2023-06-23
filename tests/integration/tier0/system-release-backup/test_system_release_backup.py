@@ -9,10 +9,10 @@ from envparse import env
 @pytest.fixture(scope="function")
 def custom_subman(shell, repository=None):
     """ """
-    # Setup repositories to install the subscription-manager from.
-    epel7_repository = "ubi"
     epel8_repository = "baseos"
     if SYSTEM_RELEASE_ENV in ("oracle-7", "centos-7"):
+        # Setup repositories to install the subscription-manager from.
+        epel7_repository = "ubi"
         repository = epel7_repository
     elif "oracle-8" in SYSTEM_RELEASE_ENV or "centos-8" in SYSTEM_RELEASE_ENV:
         repository = epel8_repository
@@ -55,11 +55,11 @@ def katello_package(shell):
     # Install katello package for satellite
     assert (
         shell(
-            "wget --no-check-certificate --output-document {} {}".format(SATELLITE_PKG_DST, SATELLITE_PKG_URL)
+            f"wget --no-check-certificate --output-document {SATELLITE_PKG_DST} {SATELLITE_PKG_URL}"
         ).returncode
         == 0
     )
-    assert shell("rpm -i {}".format(SATELLITE_PKG_DST)).returncode == 0
+    assert shell(f"rpm -i {SATELLITE_PKG_DST}").returncode == 0
 
     yield
 
@@ -120,12 +120,7 @@ def test_missing_system_release(shell, convert2rhel, system_release_missing):
     It is required to have /etc/system-release file present on the system.
     If the file is missing inhibit the conversion.
     """
-    with convert2rhel(
-        "-y --no-rpm-va -k {} -o {} --debug".format(
-            env.str("SATELLITE_KEY"),
-            env.str("SATELLITE_ORG"),
-        )
-    ) as c2r:
+    with convert2rhel(f'-y --no-rpm-va -k {env.str("SATELLITE_KEY")} -o {env.str("SATELLITE_ORG")} --debug') as c2r:
         c2r.expect("Unable to find the /etc/system-release file containing the OS name and version")
 
     assert c2r.exitstatus != 0
@@ -143,13 +138,7 @@ def test_backup_os_release_no_envar(
     """
 
     assert shell("find /etc/os-release").returncode == 0
-    with convert2rhel(
-        "-y --no-rpm-va -k {} -o {} --debug --keep-rhsm".format(
-            env.str("SATELLITE_KEY"),
-            env.str("SATELLITE_ORG"),
-        ),
-        unregister=True,
-    ) as c2r:
+    with convert2rhel(f'-y --no-rpm-va -k {env.str("SATELLITE_KEY")} -o {env.str("SATELLITE_ORG")} --debug --keep-rhsm', unregister=True) as c2r:
         c2r.expect("set the environment variable 'CONVERT2RHEL_UNSUPPORTED_INCOMPLETE_ROLLBACK.")
         assert c2r.exitstatus != 0
 
@@ -179,13 +168,7 @@ def test_backup_os_release_with_envar(
 
     assert shell("find /etc/os-release").returncode == 0
 
-    with convert2rhel(
-        "-y --no-rpm-va -k {} -o {} --debug --keep-rhsm".format(
-            env.str("SATELLITE_KEY"),
-            env.str("SATELLITE_ORG"),
-        ),
-        unregister=True,
-    ) as c2r:
+    with convert2rhel(f'-y --no-rpm-va -k {env.str("SATELLITE_KEY")} -o {env.str("SATELLITE_ORG")} --debug --keep-rhsm', unregister=True) as c2r:
         c2r.expect(
             "'CONVERT2RHEL_UNSUPPORTED_INCOMPLETE_ROLLBACK' environment variable detected, continuing conversion."
         )

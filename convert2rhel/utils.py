@@ -116,10 +116,6 @@ class Process(multiprocessing.Process):
         try:
             multiprocessing.Process.run(self)
             self._cconn.send(None)
-        # Here, `SystemExit` inherits from `BaseException`, which is too
-        # broad to catch as it involves for-loop exceptions. The idea here
-        # is to catch `SystemExit` *and* any `Exception` that shows up as we do
-        # a lot of logger.critical() and they do raise `SystemExit`.
         except (Exception, SystemExit) as e:
             try:
                 import cPickle as pickle
@@ -129,7 +125,9 @@ class Process(multiprocessing.Process):
             try:
                 self._cconn.send(e)
             except pickle.PicklingError:
-                self._cconn.send(UnableToSerialize("Child process raised %s: %s" % (type(e), str(e))))
+                self._cconn.send(
+                    UnableToSerialize(f"Child process raised {type(e)}: {str(e)}")
+                )
 
     @property
     def exception(self):
@@ -249,13 +247,7 @@ def run_as_child_process(func):
                 # terminate it.
                 process.terminate()
 
-            if not queue.empty():
-                # We don't need to block the I/O as we are mostly done with
-                # the child process and no exception was raised, so we can
-                # instantly retrieve the item that was in the queue.
-                return queue.get(block=False)
-
-            return None
+            return queue.get(block=False) if not queue.empty() else None
         except KeyboardInterrupt:
             # We have to check if the process if alive, and if it is (most
             # probably it will be), then we can call for termination. On
@@ -300,19 +292,13 @@ def get_file_content(filename, as_list=False):
     """
     lines = []
     if not os.path.exists(filename):
-        if not as_list:
-            return ""
-        return lines
+        return "" if not as_list else lines
     file_to_read = open(filename, "r")
     try:
         lines = file_to_read.readlines()
     finally:
         file_to_read.close()
-    if as_list:
-        # remove newline character from each line
-        return [x.strip() for x in lines]
-
-    return "".join(lines)
+    return [x.strip() for x in lines] if as_list else "".join(lines)
 
 
 def store_content_to_file(filename, content):
@@ -357,7 +343,7 @@ def run_subprocess(cmd, print_cmd=True, print_output=True):
         raise TypeError("cmd should be a list, not a str")
 
     if print_cmd:
-        loggerinst.debug("Calling command '%s'" % " ".join(cmd))
+        loggerinst.debug(f"""Calling command '{" ".join(cmd)}'""")
 
     process = subprocess.Popen(
         cmd,
@@ -415,7 +401,7 @@ def run_cmd_in_pty(cmd, expect_script=(), print_cmd=True, print_output=True, col
         raise TypeError("cmd should be a list, not a str")
 
     if print_cmd:
-        loggerinst.debug("Calling command '%s'" % " ".join(cmd))
+        loggerinst.debug(f"""Calling command '{" ".join(cmd)}'""")
 
     process = PexpectSpawnWithDimensions(
         cmd[0],
@@ -521,9 +507,7 @@ def mkdir_p(path):
     try:
         os.makedirs(path)
     except OSError as err:
-        if err.errno == errno.EEXIST and os.path.isdir(path):
-            pass
-        else:
+        if err.errno != errno.EEXIST or not os.path.isdir(path):
             raise
 
 
@@ -585,11 +569,13 @@ def remove_tmp_dir():
     """Remove temporary folder (TMP_DIR), not needed post-conversion."""
     try:
         shutil.rmtree(TMP_DIR)
-        loggerinst.info("Temporary folder %s removed" % TMP_DIR)
+        loggerinst.info(f"Temporary folder {TMP_DIR} removed")
     except OSError as err:
         loggerinst.warning("Failed removing temporary folder %s\nError (%s): %s" % (TMP_DIR, err.errno, err.strerror))
     except TypeError:
-        loggerinst.warning("TypeError error while removing temporary folder %s" % TMP_DIR)
+        loggerinst.warning(
+            f"TypeError error while removing temporary folder {TMP_DIR}"
+        )
 
 
 class DictWListValues(dict):
@@ -665,32 +651,28 @@ def download_pkg(
     """
     from convert2rhel.systeminfo import system_info
 
-    loggerinst.debug("Downloading the %s package." % pkg)
+    loggerinst.debug(f"Downloading the {pkg} package.")
 
     # On RHEL 7, it's necessary to invoke yumdownloader with -v, otherwise there's no output to stdout.
-    cmd = ["yumdownloader", "-v", "--destdir=%s" % dest]
+    cmd = ["yumdownloader", "-v", f"--destdir={dest}"]
     if reposdir:
-        cmd.append("--setopt=reposdir=%s" % reposdir)
+        cmd.append(f"--setopt=reposdir={reposdir}")
 
     if isinstance(disable_repos, list):
-        for repo in disable_repos:
-            cmd.append("--disablerepo=%s" % repo)
-
+        cmd.extend(f"--disablerepo={repo}" for repo in disable_repos)
     if isinstance(enable_repos, list):
-        for repo in enable_repos:
-            cmd.append("--enablerepo=%s" % repo)
-
+        cmd.extend(f"--enablerepo={repo}" for repo in enable_repos)
     if set_releasever:
         if not custom_releasever and not system_info.releasever:
             raise AssertionError("custom_releasever or system_info.releasever must be set.")
 
         if custom_releasever:
-            cmd.append("--releasever=%s" % custom_releasever)
+            cmd.append(f"--releasever={custom_releasever}")
         else:
-            cmd.append("--releasever=%s" % system_info.releasever)
+            cmd.append(f"--releasever={system_info.releasever}")
 
     if varsdir:
-        cmd.append("--setopt=varsdir=%s" % varsdir)
+        cmd.append(f"--setopt=varsdir={varsdir}")
 
     if system_info.version.major == 8:
         cmd.append("--setopt=module_platform_id=platform:el8")
@@ -757,8 +739,8 @@ def download_pkg(
 
     path = get_rpm_path_from_yumdownloader_output(cmd, output, dest)
     if path:
-        loggerinst.info("Successfully downloaded the %s package." % pkg)
-        loggerinst.debug("Path of the downloaded package: %s" % path)
+        loggerinst.info(f"Successfully downloaded the {pkg} package.")
+        loggerinst.debug(f"Path of the downloaded package: {path}")
 
     return path
 
@@ -781,9 +763,9 @@ def get_rpm_path_from_yumdownloader_output(cmd, output, dest):
     pkg_nevra_match = re.search(r"^using local copy of (?:\d+:)?(.*)$", last_output_line)
 
     if rpm_name_match:
-        path = os.path.join(dest, rpm_name_match.group(0))
+        path = os.path.join(dest, rpm_name_match[0])
     elif pkg_nevra_match:
-        path = os.path.join(dest, pkg_nevra_match.group(1) + ".rpm")
+        path = os.path.join(dest, f"{pkg_nevra_match[1]}.rpm")
     else:
         loggerinst.warning(
             "Couldn't find the name of the downloaded rpm in the output of yumdownloader.\n"
@@ -846,7 +828,9 @@ def find_keyid(keyfile):
             print_output=False,
         )
         if ret_code != 0:
-            raise ImportGPGKeyError("Failed to import the rpm gpg key into a temporary keyring: %s" % output)
+            raise ImportGPGKeyError(
+                f"Failed to import the rpm gpg key into a temporary keyring: {output}"
+            )
 
         # Step 2: Print the information about the keys in the temporary keyfile.
         # --with-colons give us guaranteed machine parsable, stable output.
@@ -864,7 +848,9 @@ def find_keyid(keyfile):
             print_output=False,
         )
         if ret_code != 0:
-            raise ImportGPGKeyError("Failed to read the temporary keyring with the rpm gpg key: %s" % output)
+            raise ImportGPGKeyError(
+                f"Failed to read the temporary keyring with the rpm gpg key: {output}"
+            )
     finally:
         try:
             # Remove the temporary keyring.  We can't use the context manager
@@ -893,7 +879,9 @@ def find_keyid(keyfile):
             break
 
     if not keyid:
-        raise ImportGPGKeyError("Unable to determine the gpg keyid for the rpm key file: %s" % keyfile)
+        raise ImportGPGKeyError(
+            f"Unable to determine the gpg keyid for the rpm key file: {keyfile}"
+        )
 
     return keyid.lower()
 
@@ -976,7 +964,7 @@ def hide_secrets(
         else:
             # Handle the case where the secret option and its parameter are both in one argument ("--password=SECRET")
             for option in secret_options:
-                if arg.startswith(option + "="):
+                if arg.startswith(f"{option}="):
                     arg = "{0}={1}".format(option, OBFUSCATION_STRING)
 
         sanitized_list.append(arg)
@@ -1000,15 +988,13 @@ def format_sequence_as_message(sequence_of_items):
     :rtype: str
     """
     if len(sequence_of_items) < 1:
-        message = ""
+        return ""
     elif len(sequence_of_items) == 1:
-        message = sequence_of_items[0]
+        return sequence_of_items[0]
     elif len(sequence_of_items) == 2:
-        message = " and ".join(sequence_of_items)
+        return " and ".join(sequence_of_items)
     else:
-        message = ", ".join(sequence_of_items[:-1]) + ", and " + sequence_of_items[-1]
-
-    return message
+        return ", ".join(sequence_of_items[:-1]) + ", and " + sequence_of_items[-1]
 
 
 def flatten(dictionary, parent_key=False, separator="."):
@@ -1027,17 +1013,19 @@ def flatten(dictionary, parent_key=False, separator="."):
     for key, value in dictionary.items():
         new_key = str(parent_key) + separator + key if parent_key else key
 
-        if isinstance(value, dict):
-            if not value:
-                items.append((new_key, "null"))
-            else:
-                items.extend(flatten(value, new_key, separator).items())
+        if (
+            isinstance(value, dict)
+            and not value
+            or not isinstance(value, dict)
+            and isinstance(value, list)
+            and not value
+        ):
+            items.append((new_key, "null"))
+        elif isinstance(value, dict):
+            items.extend(flatten(value, new_key, separator).items())
         elif isinstance(value, list):
-            if not value:
-                items.append((new_key, "null"))
-            else:
-                for k, v in enumerate(value):
-                    items.extend(flatten({str(k): v}, new_key).items())
+            for k, v in enumerate(value):
+                items.extend(flatten({str(k): v}, new_key).items())
         else:
             items.append((new_key, value))
     return dict(items)

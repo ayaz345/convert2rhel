@@ -193,7 +193,7 @@ def register_system():
             # When the user hits Control-C to exit, we shouldn't retry
             raise
         except Exception as e:
-            loggerinst.info("System registration failed with error: %s" % str(e))
+            loggerinst.info(f"System registration failed with error: {str(e)}")
             sleep(REGISTRATION_ATTEMPT_DELAYS[attempt])
             attempt += 1
             continue
@@ -212,7 +212,9 @@ def _stop_rhsm():
     cmd = ["/bin/systemctl", "stop", "rhsm"]
     output, ret_code = utils.run_subprocess(cmd, print_output=False)
     if ret_code != 0:
-        raise StopRhsmError("Stopping RHSM failed with code: %s; output: %s" % (ret_code, output))
+        raise StopRhsmError(
+            f"Stopping RHSM failed with code: {ret_code}; output: {output}"
+        )
     loggerinst.info("RHSM service stopped.")
 
 
@@ -353,8 +355,7 @@ class RegistrationCommand(object):
         if self.rhsm_prefix:
             connection_opts["handler"] = self.rhsm_prefix
 
-        connection_opts = dbus.Dictionary(connection_opts, signature="sv", variant_level=1)
-        return connection_opts
+        return dbus.Dictionary(connection_opts, signature="sv", variant_level=1)
 
     def __call__(self):
         """
@@ -443,20 +444,17 @@ class RegistrationCommand(object):
                     )
 
             except dbus.exceptions.DBusException as e:
-                # Sometimes we get NoReply but the registration has succeeded.
-                # Check the registration status before deciding if this is an error.
-                if e.get_dbus_name() == "org.freedesktop.DBus.Error.NoReply":
-                    # We need to set the connection opts in config before
-                    # checking for registration otherwise we might ask the
-                    # wrong server if the host is registered.
-                    self._set_connection_opts_in_config()
-
-                    if not _is_registered():
-                        # Host is not registered so re-raise the error
-                        raise
-                else:
+                if e.get_dbus_name() != "org.freedesktop.DBus.Error.NoReply":
                     raise
-                # Host was registered so continue
+                # We need to set the connection opts in config before
+                # checking for registration otherwise we might ask the
+                # wrong server if the host is registered.
+                self._set_connection_opts_in_config()
+
+                if not _is_registered():
+                    # Host is not registered so re-raise the error
+                    raise
+                        # Host was registered so continue
             else:
                 # On success, we need to set the connection opts as well
                 self._set_connection_opts_in_config()
@@ -493,12 +491,15 @@ class RegistrationCommand(object):
         if self.connection_opts:
             loggerinst.info("Setting RHSM connection configuration.")
             sub_man_config_command = ["subscription-manager", "config"]
-            for option, value in self.connection_opts.items():
-                sub_man_config_command.append("--%s=%s" % (CONNECT_OPT_NAME_TO_CONFIG_KEY[option], value))
-
+            sub_man_config_command.extend(
+                f"--{CONNECT_OPT_NAME_TO_CONFIG_KEY[option]}={value}"
+                for option, value in self.connection_opts.items()
+            )
             output, ret_code = utils.run_subprocess(sub_man_config_command, print_cmd=True)
             if ret_code != 0:
-                raise ValueError("Error setting the subscription-manager connection configuration: %s" % output)
+                raise ValueError(
+                    f"Error setting the subscription-manager connection configuration: {output}"
+                )
 
             loggerinst.info("Successfully set RHSM connection configuration.")
 
@@ -534,7 +535,9 @@ def replace_subscription_manager():
         return
 
     if not os.path.isdir(SUBMGR_RPMS_DIR) or not os.listdir(SUBMGR_RPMS_DIR):
-        loggerinst.critical("The %s directory does not exist or is empty." % SUBMGR_RPMS_DIR)
+        loggerinst.critical(
+            f"The {SUBMGR_RPMS_DIR} directory does not exist or is empty."
+        )
 
     try:
         unregister_system()
@@ -583,7 +586,7 @@ def install_rhel_subscription_manager():
     rpms_to_install = [os.path.join(SUBMGR_RPMS_DIR, filename) for filename in os.listdir(SUBMGR_RPMS_DIR)]
 
     if not rpms_to_install:
-        loggerinst.warning("No RPMs found in %s." % SUBMGR_RPMS_DIR)
+        loggerinst.warning(f"No RPMs found in {SUBMGR_RPMS_DIR}.")
         return
 
     # We need to make sure the redhat-uep.pem file exists since the convert2rhel
@@ -659,7 +662,9 @@ def track_installed_submgr_pkgs(installed_pkg_names, pkgs_to_not_track):
             pkgs_to_track.append(installed_pkg)
         else:
             # Don't track packages that were present on the system before the installation
-            loggerinst.debug("Skipping tracking previously installed package: %s" % installed_pkg)
+            loggerinst.debug(
+                f"Skipping tracking previously installed package: {installed_pkg}"
+            )
 
     loggerinst.debug("Tracking installed packages: %r" % pkgs_to_track)
     backup.changed_pkgs_control.track_installed_pkgs(pkgs_to_track)
@@ -686,19 +691,14 @@ def attach_subscription():
         loggerinst.info("Using the activation key provided through the command line...")
         return True
     pool = ["subscription-manager", "attach"]
-    if tool_opts.auto_attach:
+    if tool_opts.auto_attach or not tool_opts.pool:
         pool.append("--auto")
         loggerinst.info("Auto-attaching compatible subscriptions to the system ...")
-    elif tool_opts.pool:
+    else:
         # The subscription pool ID has been passed through a command line
         # option
         pool.extend(["--pool", tool_opts.pool])
         loggerinst.info("Attaching provided subscription pool ID to the system ...")
-    elif not tool_opts.auto_attach and not tool_opts.pool:
-        # defaulting to --auto similiar to the functioning of subscription-manager
-        pool.append("--auto")
-        loggerinst.info("Auto-attaching compatible subscriptions to the system ...")
-
     _, ret_code = utils.run_subprocess(pool)
 
     if ret_code != 0:
@@ -714,9 +714,10 @@ def attach_subscription():
 
 def get_pool_id(sub_raw_attrs):
     """Parse the input multiline string holding subscription attributes to distill the pool ID."""
-    pool_id = re.search(r"^Pool ID:\s+(.*?)$", sub_raw_attrs, re.MULTILINE | re.DOTALL)
-    if pool_id:
-        return pool_id.group(1)
+    if pool_id := re.search(
+        r"^Pool ID:\s+(.*?)$", sub_raw_attrs, re.MULTILINE | re.DOTALL
+    ):
+        return pool_id[1]
 
     loggerinst.critical("Cannot parse the subscription pool ID from string:\n%s" % sub_raw_attrs)
 
@@ -741,41 +742,38 @@ def get_repo(repos_raw):
     """Generator that parses the raw string of available repositores and
     provides the repository IDs, one at a time.
     """
-    for repo_id in re.findall(r"Repo ID:\s+(.*?)\n", repos_raw, re.DOTALL | re.MULTILINE):
-        yield repo_id
+    yield from re.findall(
+        r"Repo ID:\s+(.*?)\n", repos_raw, re.DOTALL | re.MULTILINE
+    )
 
 
 def verify_rhsm_installed():
     """Make sure that subscription-manager has been installed."""
-    if not pkghandler.get_installed_pkg_objects("subscription-manager"):
-        if tool_opts.keep_rhsm:
-            loggerinst.critical(
-                "When using the --keep-rhsm option, the subscription-manager needs to be installed before"
-                " executing convert2rhel."
-            )
-        else:
-            # Most probably this condition will not be hit. If the installation of subscription-manager fails, the
-            # conversion stops already at that point.
-            loggerinst.critical("The subscription-manager package is not installed correctly.")
-    else:
+    if pkghandler.get_installed_pkg_objects("subscription-manager"):
         loggerinst.info("subscription-manager installed correctly.")
+
+    elif tool_opts.keep_rhsm:
+        loggerinst.critical(
+            "When using the --keep-rhsm option, the subscription-manager needs to be installed before"
+            " executing convert2rhel."
+        )
+    else:
+        # Most probably this condition will not be hit. If the installation of subscription-manager fails, the
+        # conversion stops already at that point.
+        loggerinst.critical("The subscription-manager package is not installed correctly.")
 
 
 def disable_repos():
     """Before enabling specific repositories, all repositories should be
     disabled. This can be overriden by the --disablerepo option.
     """
-    disable_cmd = ["subscription-manager", "repos"]
-    disable_repos = []
-    for repo in tool_opts.disablerepo:
-        disable_repos.append("--disable=%s" % repo)
-
+    disable_repos = [f"--disable={repo}" for repo in tool_opts.disablerepo]
     if not disable_repos:
         # Default is to disable all repos to make clean environment for
         # enabling repos later
         disable_repos.append("--disable=*")
 
-    disable_cmd.extend(disable_repos)
+    disable_cmd = ["subscription-manager", "repos", *disable_repos]
     output, ret_code = utils.run_subprocess(disable_cmd, print_output=False)
     if ret_code != 0:
         loggerinst.critical("Repositories were not possible to disable through subscription-manager:\n%s" % output)
@@ -835,8 +833,7 @@ def enable_repos(rhel_repoids):
 def _submgr_enable_repos(repos_to_enable):
     """Go through subscription manager repos and try to enable them through subscription-manager."""
     enable_cmd = ["subscription-manager", "repos"]
-    for repo in repos_to_enable:
-        enable_cmd.append("--enable=%s" % repo)
+    enable_cmd.extend(f"--enable={repo}" for repo in repos_to_enable)
     output, ret_code = utils.run_subprocess(enable_cmd, print_output=False)
     if ret_code != 0:
         loggerinst.critical("Repositories were not possible to enable through subscription-manager:\n%s" % output)
@@ -965,14 +962,9 @@ def lock_releasever_in_rhel_repositories():
     # rhsm is used, otherwise, there's no need to lock the releasever as the subscription-manager won't be available.
     if system_info.corresponds_to_rhel_eus_release() and not tool_opts.no_rhsm:
         loggerinst.info(
-            "Updating /etc/yum.repos.d/rehat.repo to point to RHEL %s instead of the default latest minor version."
-            % system_info.releasever
+            f"Updating /etc/yum.repos.d/rehat.repo to point to RHEL {system_info.releasever} instead of the default latest minor version."
         )
-        cmd = [
-            "subscription-manager",
-            "release",
-            "--set=%s" % system_info.releasever,
-        ]
+        cmd = ["subscription-manager", "release", f"--set={system_info.releasever}"]
 
         output, ret_code = utils.run_subprocess(cmd, print_output=False)
         if ret_code != 0:
@@ -982,7 +974,9 @@ def lock_releasever_in_rhel_repositories():
                 output,
             )
         else:
-            loggerinst.info("RHEL repositories locked to the %s minor version." % system_info.releasever)
+            loggerinst.info(
+                f"RHEL repositories locked to the {system_info.releasever} minor version."
+            )
     else:
         loggerinst.info("Skipping locking RHEL repositories to a specific EUS minor version.")
 

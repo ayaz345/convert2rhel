@@ -41,15 +41,8 @@ def test_sub_man_rollback(convert2rhel, shell, required_packages, convert2rhel_r
       when using the DNF python API (https://issues.redhat.com/browse/RHELC-762)
     """
 
-    for run in range(2):
-        with convert2rhel(
-            "-y --no-rpm-va --serverurl {} --username {} --password {} --pool {} --debug".format(
-                env.str("RHSM_SERVER_URL"),
-                env.str("RHSM_USERNAME"),
-                env.str("RHSM_PASSWORD"),
-                env.str("RHSM_POOL"),
-            )
-        ) as c2r:
+    for _ in range(2):
+        with convert2rhel(f'-y --no-rpm-va --serverurl {env.str("RHSM_SERVER_URL")} --username {env.str("RHSM_USERNAME")} --password {env.str("RHSM_PASSWORD")} --pool {env.str("RHSM_POOL")} --debug') as c2r:
             assert c2r.expect("Validate the dnf transaction") == 0
             # At this point the centos-linux-release package is already installed
             c2r.sendcontrol("c")

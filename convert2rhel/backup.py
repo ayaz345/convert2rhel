@@ -76,7 +76,9 @@ class ChangedRPMPackagesController(object):
         pkgs_to_install = []
         for restorable_pkg in self.removed_pkgs:
             if restorable_pkg.path is None:
-                loggerinst.warning("Couldn't find a backup for %s package." % restorable_pkg.name)
+                loggerinst.warning(
+                    f"Couldn't find a backup for {restorable_pkg.name} package."
+                )
                 continue
             pkgs_to_install.append(restorable_pkg.path)
 
@@ -103,9 +105,9 @@ class ChangedRPMPackagesController(object):
             pkgs_as_str = " ".join(pkgs_to_install)
             loggerinst.debug(output.strip())
             if critical:
-                loggerinst.critical("Error: Couldn't install %s packages." % pkgs_as_str)
+                loggerinst.critical(f"Error: Couldn't install {pkgs_as_str} packages.")
 
-            loggerinst.warning("Couldn't install %s packages." % pkgs_as_str)
+            loggerinst.warning(f"Couldn't install {pkgs_as_str} packages.")
             return False
 
         for path in pkgs_to_install:
@@ -145,7 +147,7 @@ class BackupController(object):
         :arg restorable: RestorableChange object that can be restored later.
         """
         if not isinstance(restorable, RestorableChange):
-            raise TypeError("`%s` is not a RestorableChange object" % restorable)
+            raise TypeError(f"`{restorable}` is not a RestorableChange object")
 
         restorable.enable()
 
@@ -248,7 +250,9 @@ class RestorableRpmKey(RestorableChange):
         if not self.installed:
             output, ret_code = utils.run_subprocess(["rpm", "--import", self.keyfile], print_output=False)
             if ret_code != 0:
-                raise utils.ImportGPGKeyError("Failed to import the GPG key %s: %s" % (self.keyfile, output))
+                raise utils.ImportGPGKeyError(
+                    f"Failed to import the GPG key {self.keyfile}: {output}"
+                )
 
             self.previously_installed = False
 
@@ -260,22 +264,27 @@ class RestorableRpmKey(RestorableChange):
     @property
     def installed(self):
         """Whether the GPG key has been imported into the rpmdb."""
-        output, status = utils.run_subprocess(["rpm", "-q", "gpg-pubkey-%s" % self.keyid], print_output=False)
+        output, status = utils.run_subprocess(
+            ["rpm", "-q", f"gpg-pubkey-{self.keyid}"], print_output=False
+        )
 
         if status == 0:
             return True
 
-        if status == 1 and "package gpg-pubkey-%s is not installed" % self.keyid in output:
+        if (
+            status == 1
+            and f"package gpg-pubkey-{self.keyid} is not installed" in output
+        ):
             return False
 
         raise utils.ImportGPGKeyError(
-            "Searching the rpmdb for the gpg key %s failed: Code %s: %s" % (self.keyid, status, output)
+            f"Searching the rpmdb for the gpg key {self.keyid} failed: Code {status}: {output}"
         )
 
     def restore(self):
         """Ensure the rpmdb has or does not have the GPG key according to the state before we ran."""
         if self.enabled and self.previously_installed is False:
-            utils.run_subprocess(["rpm", "-e", "gpg-pubkey-%s" % self.keyid])
+            utils.run_subprocess(["rpm", "-e", f"gpg-pubkey-{self.keyid}"])
 
         super(RestorableRpmKey, self).restore()
 
@@ -286,14 +295,14 @@ class RestorableFile(object):
 
     def backup(self):
         """Save current version of a file"""
-        loggerinst.info("Backing up %s." % self.filepath)
+        loggerinst.info(f"Backing up {self.filepath}.")
         if os.path.isfile(self.filepath):
             try:
-                loggerinst.debug("Copying %s to %s." % (self.filepath, BACKUP_DIR))
+                loggerinst.debug(f"Copying {self.filepath} to {BACKUP_DIR}.")
                 shutil.copy2(self.filepath, BACKUP_DIR)
             except (OSError, IOError) as err:
                 # IOError for py2 and OSError for py3
-                loggerinst.critical("Error(%s): %s" % (err.errno, err.strerror))
+                loggerinst.critical(f"Error({err.errno}): {err.strerror}")
         else:
             loggerinst.info("Can't find %s.", self.filepath)
 
@@ -301,12 +310,12 @@ class RestorableFile(object):
         """Restore a previously backed up file"""
         backup_filepath = os.path.join(BACKUP_DIR, os.path.basename(self.filepath))
         if rollback:
-            loggerinst.task("Rollback: Restore %s from backup" % self.filepath)
+            loggerinst.task(f"Rollback: Restore {self.filepath} from backup")
         else:
-            loggerinst.info("Restoring %s from backup" % self.filepath)
+            loggerinst.info(f"Restoring {self.filepath} from backup")
 
         if not os.path.isfile(backup_filepath):
-            loggerinst.info("%s hasn't been backed up." % self.filepath)
+            loggerinst.info(f"{self.filepath} hasn't been backed up.")
             return
         try:
             shutil.copy2(backup_filepath, self.filepath)
@@ -314,21 +323,21 @@ class RestorableFile(object):
             # Do not call 'critical' which would halt the program. We are in
             # a rollback phase now and we want to rollback as much as possible.
             # IOError for py2 and OSError for py3
-            loggerinst.warning("Error(%s): %s" % (err.errno, err.strerror))
+            loggerinst.warning(f"Error({err.errno}): {err.strerror}")
             return
 
         if rollback:
-            loggerinst.info("File %s restored." % self.filepath)
+            loggerinst.info(f"File {self.filepath} restored.")
         else:
-            loggerinst.debug("File %s restored." % self.filepath)
+            loggerinst.debug(f"File {self.filepath} restored.")
 
     def remove(self):
         """Remove restored file from original place, backup isn't removed"""
         try:
             os.remove(self.filepath)
-            loggerinst.debug("File %s removed." % self.filepath)
+            loggerinst.debug(f"File {self.filepath} removed.")
         except (OSError, IOError):
-            loggerinst.debug("Couldn't remove restored file %s" % self.filepath)
+            loggerinst.debug(f"Couldn't remove restored file {self.filepath}")
 
 
 class RestorablePackage(object):
@@ -348,7 +357,7 @@ class RestorablePackage(object):
         :param reposdir: Custom repositories directory to be used in the backup.
         :type reposdir: str
         """
-        loggerinst.info("Backing up %s." % self.name)
+        loggerinst.info(f"Backing up {self.name}.")
         if os.path.isdir(BACKUP_DIR):
             # If we detect that the current system is an EUS release, then we
             # proceed to use the hardcoded_repofiles, otherwise, we use the
@@ -367,7 +376,7 @@ class RestorablePackage(object):
             if not system_info.has_internet_access:
                 if reposdir:
                     loggerinst.debug(
-                        "Not using repository files stored in %s due to the absence of internet access." % reposdir
+                        f"Not using repository files stored in {reposdir} due to the absence of internet access."
                     )
                 self.path = download_pkg(
                     self.name,
@@ -378,7 +387,7 @@ class RestorablePackage(object):
                 )
             else:
                 if reposdir:
-                    loggerinst.debug("Using repository files stored in %s." % reposdir)
+                    loggerinst.debug(f"Using repository files stored in {reposdir}.")
                 self.path = download_pkg(
                     self.name,
                     dest=BACKUP_DIR,
@@ -388,7 +397,7 @@ class RestorablePackage(object):
                     varsdir=varsdir,
                 )
         else:
-            loggerinst.warning("Can't access %s" % BACKUP_DIR)
+            loggerinst.warning(f"Can't access {BACKUP_DIR}")
 
 
 def remove_pkgs(
@@ -431,13 +440,13 @@ def remove_pkgs(
         # handle the epoch well and considers the package we want to remove as not installed. On the other hand, the
         # epoch in NEVRA returned by dnf is handled by rpm just fine.
         nvra = remove_epoch_from_yum_nevra_notation(nevra)
-        loggerinst.info("Removing package: %s" % nvra)
+        loggerinst.info(f"Removing package: {nvra}")
         _, ret_code = run_subprocess(["rpm", "-e", "--nodeps", nvra])
         if ret_code != 0:
             if critical:
-                loggerinst.critical("Error: Couldn't remove %s." % nvra)
+                loggerinst.critical(f"Error: Couldn't remove {nvra}.")
             else:
-                loggerinst.warning("Couldn't remove %s." % nvra)
+                loggerinst.warning(f"Couldn't remove {nvra}.")
 
 
 def remove_epoch_from_yum_nevra_notation(package_nevra):
@@ -450,10 +459,9 @@ def remove_epoch_from_yum_nevra_notation(package_nevra):
     This function removes the epoch from the yum notation only.
     It's safe to pass the dnf notation string with an epoch. This function will return it as is.
     """
-    epoch_match = re.search(r"^\d+:(.*)", package_nevra)
-    if epoch_match:
+    if epoch_match := re.search(r"^\d+:(.*)", package_nevra):
         # Return NVRA without the found epoch
-        return epoch_match.group(1)
+        return epoch_match[1]
     return package_nevra
 
 

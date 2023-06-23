@@ -63,10 +63,6 @@ def test_tools_opts_debug(monkeypatch, tmpdir, read_std, is_py2, global_tool_opt
     except AssertionError:
         if not is_py2:
             assert "debug entry 1: data" in stdouterr_err
-        else:
-            # this workaround is not working for py2 - passing
-            pass
-
     global_tool_opts.debug = False
     logger.debug("debug entry 2: %s", "data")
     stdouterr_out, stdouterr_err = read_std()

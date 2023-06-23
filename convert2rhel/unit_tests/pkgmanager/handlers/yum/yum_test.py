@@ -41,10 +41,7 @@ class YumResolveDepsMocked(unit_tests.MockFunction):
 
     def __call__(self, *args, **kwargs):
         self.called += 1
-        if self.called >= self.loop_until:
-            return True
-        else:
-            return False
+        return self.called >= self.loop_until
 
 
 SYSTEM_PACKAGES = [

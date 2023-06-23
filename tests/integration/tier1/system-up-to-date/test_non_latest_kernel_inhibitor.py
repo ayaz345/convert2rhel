@@ -16,11 +16,11 @@ def set_latest_kernel(shell):
 
     # Get the full name of the kerenl
     full_name = shell(
-        "grubby --info ALL | grep \"title=.*{}\" | tr -d '\"' | sed 's/title=//'".format(latest_kernel)
+        f"""grubby --info ALL | grep \"title=.*{latest_kernel}\" | tr -d '\"' | sed 's/title=//'"""
     ).output
 
     # Set the latest kernel as the one we want to reboot to
-    shell("grub2-set-default '{}'".format(full_name.strip()))
+    shell(f"grub2-set-default '{full_name.strip()}'")
 
 
 def test_non_latest_kernel(shell, convert2rhel):
@@ -29,14 +29,7 @@ def test_non_latest_kernel(shell, convert2rhel):
     has to be inhibited.
     """
 
-    with convert2rhel(
-        "-y --no-rpm-va --serverurl {} --username {} --password {} --pool {} --debug".format(
-            env.str("RHSM_SERVER_URL"),
-            env.str("RHSM_USERNAME"),
-            env.str("RHSM_PASSWORD"),
-            env.str("RHSM_POOL"),
-        )
-    ) as c2r:
+    with convert2rhel(f'-y --no-rpm-va --serverurl {env.str("RHSM_SERVER_URL")} --username {env.str("RHSM_USERNAME")} --password {env.str("RHSM_PASSWORD")} --pool {env.str("RHSM_POOL")} --debug') as c2r:
         if "centos-8" in SYSTEM_RELEASE_ENV:
             c2r.expect(
                 "The version of the loaded kernel is different from the latest version in repositories defined in the"

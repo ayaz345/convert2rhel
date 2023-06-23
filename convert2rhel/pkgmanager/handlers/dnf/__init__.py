@@ -101,7 +101,7 @@ class DnfTransactionHandler(TransactionHandlerBase):
             # Load metadata of the enabled repositories
             self._base.fill_sack()
         except pkgmanager.exceptions.RepoError as e:
-            loggerinst.debug("Loading repository metadata failed: %s" % e)
+            loggerinst.debug(f"Loading repository metadata failed: {e}")
             loggerinst.critical("Failed to populate repository metadata.")
 
     def _perform_operations(self):
@@ -121,13 +121,9 @@ class DnfTransactionHandler(TransactionHandlerBase):
             # Splitting the name and arch so we can filter it out in the list
             # of packages to upgrade.
             name, arch = tuple(pkg.rsplit("."))
-            upgrade_pkg = next(iter(upgrades.filter(name=name, arch=arch)), None)
-
-            # If a package is marked for update, then we don't need to
-            # proceed with reinstall, and possibly, the downgrade of this
-            # package. This is an inconsistency that could lead to packages
-            # being outdated in the system after the conversion.
-            if upgrade_pkg:
+            if upgrade_pkg := next(
+                iter(upgrades.filter(name=name, arch=arch)), None
+            ):
                 self._base.upgrade(pkg_spec=pkg)
                 continue
 
@@ -153,14 +149,14 @@ class DnfTransactionHandler(TransactionHandlerBase):
         try:
             self._base.resolve(allow_erasing=True)
         except pkgmanager.exceptions.DepsolveError as e:
-            loggerinst.debug("Got the following exception message: %s" % e)
+            loggerinst.debug(f"Got the following exception message: {e}")
             loggerinst.critical("Failed to resolve dependencies in the transaction.")
 
         loggerinst.info("Downloading the packages that were added to the dnf transaction set.")
         try:
             self._base.download_packages(self._base.transaction.install_set, PackageDownloadCallback())
         except pkgmanager.exceptions.DownloadError as e:
-            loggerinst.debug("Got the following exception message: %s" % e)
+            loggerinst.debug(f"Got the following exception message: {e}")
             loggerinst.critical("Failed to download the transaction packages.")
 
     def _process_transaction(self, validate_transaction):
@@ -176,7 +172,9 @@ class DnfTransactionHandler(TransactionHandlerBase):
             loggerinst.info("Validating the dnf transaction set, no modifications to the system will happen this time.")
             self._base.conf.tsflags.append("test")
         else:
-            loggerinst.info("Replacing %s packages. This process may take some time to finish." % system_info.name)
+            loggerinst.info(
+                f"Replacing {system_info.name} packages. This process may take some time to finish."
+            )
 
         try:
             self._base.do_transaction(display=TransactionDisplayCallback())

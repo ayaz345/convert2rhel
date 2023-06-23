@@ -55,8 +55,8 @@ class DumbMocked(unit_tests.MockFunction):
 class GlobMocked(unit_tests.MockFunction):
     def __call__(self, *args, **kwargs):
         return [
-            unit_tests.TMP_DIR + "redhat-release/pkg1.rpm",
-            unit_tests.TMP_DIR + "redhat-release/pkg2.rpm",
+            f"{unit_tests.TMP_DIR}redhat-release/pkg1.rpm",
+            f"{unit_tests.TMP_DIR}redhat-release/pkg2.rpm",
             "Server/redhat-release-7/pkg1.rpm",
             "Server/redhat-release-7/pkg2.rpm",
         ]

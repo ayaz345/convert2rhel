@@ -67,7 +67,9 @@ class RhelCompatibleKernel(actions.Action):
             )
             return
         else:
-            logger.info("The booted kernel %s is compatible with RHEL." % system_info.booted_kernel)
+            logger.info(
+                f"The booted kernel {system_info.booted_kernel} is compatible with RHEL."
+            )
 
 
 def _bad_kernel_version(kernel_release):
@@ -98,7 +100,7 @@ def _bad_kernel_version(kernel_release):
 
 def _bad_kernel_package_signature(kernel_release):
     """Return True if the booted kernel is not signed by the original OS vendor, i.e. it's a custom kernel."""
-    vmlinuz_path = "/boot/vmlinuz-%s" % kernel_release
+    vmlinuz_path = f"/boot/vmlinuz-{kernel_release}"
 
     kernel_pkg, return_code = run_subprocess(
         ["rpm", "-qf", "--qf", "%{VERSION}&%{RELEASE}&%{ARCH}&%{NAME}", vmlinuz_path], print_output=False
@@ -123,10 +125,12 @@ def _bad_kernel_package_signature(kernel_release):
     # e.g. Oracle Linux Server -> Oracle or
     #      Oracle Linux Server -> CentOS Linux
     if bad_signature:
-        logger.warning("Custom kernel detected. The booted kernel needs to be signed by %s." % os_vendor)
+        logger.warning(
+            f"Custom kernel detected. The booted kernel needs to be signed by {os_vendor}."
+        )
         return True
 
-    logger.debug("The booted kernel is signed by %s." % os_vendor)
+    logger.debug(f"The booted kernel is signed by {os_vendor}.")
     return False
 
 

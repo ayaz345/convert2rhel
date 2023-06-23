@@ -415,6 +415,8 @@ class TestPkgHandler(unit_tests.ExtendedTestCase):
             return self
 
         def dbMatch(self, key="name", value=""):
+            if key != "name":
+                return []
             db = [
                 {
                     rpm.RPMTAG_NAME: "pkg1",
@@ -429,12 +431,13 @@ class TestPkgHandler(unit_tests.ExtendedTestCase):
                     rpm.RPMTAG_EVR: "2-3",
                 },
             ]
-            if key != "name":  # everything else than 'name' is unsupported ATM :)
-                return []
-            if not value:
-                return db
-            else:
-                return [db_entry for db_entry in db if db_entry[rpm.RPMTAG_NAME] == value]
+            return (
+                db
+                if not value
+                else [
+                    db_entry for db_entry in db if db_entry[rpm.RPMTAG_NAME] == value
+                ]
+            )
 
     @unit_tests.mock(logging.Logger, "warning", GetLoggerMocked())
     @unit_tests.mock(rpm, "TransactionSet", TransactionSetMocked())
@@ -708,7 +711,7 @@ class TestPkgHandler(unit_tests.ExtendedTestCase):
                 "--force",
                 "--nodeps",
                 "--replacepkgs",
-                "%skernel-4.7.4-200.fc24*" % utils.TMP_DIR,
+                f"{utils.TMP_DIR}kernel-4.7.4-200.fc24*",
             ],
         )
 
@@ -1245,13 +1248,13 @@ def test_get_total_packages_to_update(
     if package_manager_type == "dnf":
         monkeypatch.setattr(
             pkghandler,
-            "_get_packages_to_update_%s" % package_manager_type,
+            f"_get_packages_to_update_{package_manager_type}",
             value=lambda reposdir: packages,
         )
     else:
         monkeypatch.setattr(
             pkghandler,
-            "_get_packages_to_update_%s" % package_manager_type,
+            f"_get_packages_to_update_{package_manager_type}",
             value=lambda: packages,
         )
     assert get_total_packages_to_update(reposdir=reposdir) == expected
@@ -1265,10 +1268,7 @@ def test_get_total_packages_to_update(
 def test_get_packages_to_update_yum(packages, monkeypatch):
     PkgName = namedtuple("PkgNames", ["name"])
     PkgUpdates = namedtuple("PkgUpdates", ["updates"])
-    transaction_pkgs = []
-    for package in packages:
-        transaction_pkgs.append(PkgName(package))
-
+    transaction_pkgs = [PkgName(package) for package in packages]
     pkg_lists_mock = mock.Mock(return_value=PkgUpdates(transaction_pkgs))
 
     monkeypatch.setattr(pkgmanager.YumBase, "doPackageLists", value=pkg_lists_mock)
@@ -1354,16 +1354,12 @@ class TestInstallGpgKeys(object):
 
         pkghandler.install_gpg_keys()
 
-        # Get the filenames for every gpg key registered with backup_control
-        restorable_keys = set()
-        for key in global_backup_control._restorables:
-            restorable_keys.add(key.keyfile)
-
+        restorable_keys = {key.keyfile for key in global_backup_control._restorables}
         gpg_file_glob = os.path.join(self.gpg_keys_dir, "*")
         gpg_keys = glob.glob(gpg_file_glob)
 
         # Make sure we have some keys in the data dir to check
-        assert len(gpg_keys) != 0
+        assert gpg_keys
 
         # check that all of the keys from data_dir have been registered with the backup_control.
         # We'll test what the restorable keys do in backup_test (for the RestorableKey class)
@@ -1981,7 +1977,9 @@ def test_install_rhel_kernel(pretend_os, monkeypatch):
     # 1st scenario: kernels collide; the installed one is already a RHEL kernel = no action.
     kernel_package = "kernel-3.10.0-1127.19.1.el7.x86_64"
 
-    utils.run_subprocess.output = "Package %s already installed and latest version" % kernel_package
+    utils.run_subprocess.output = (
+        f"Package {kernel_package} already installed and latest version"
+    )
     pkghandler.get_installed_pkgs_w_different_fingerprint.is_only_rhel_kernel_installed = True
 
     update_kernel = pkghandler.install_rhel_kernel()

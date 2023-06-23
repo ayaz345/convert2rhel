@@ -316,11 +316,7 @@ class CLI(object):
         else:
             # At first, in tech preview, we use an environment variable to set the activity.
             experimental_analysis = bool(os.getenv("CONVERT2RHEL_EXPERIMENTAL_ANALYSIS", None))
-            if experimental_analysis:
-                tool_opts.activity = "analysis"
-            else:
-                tool_opts.activity = "conversion"
-
+            tool_opts.activity = "analysis" if experimental_analysis else "conversion"
         # Processing the configuration file
         conf_file_opts = options_from_config_files(parsed_opts.config_file)
         ToolOpts.set_opts(tool_opts, conf_file_opts)  # pylint: disable=E0601
@@ -352,8 +348,9 @@ class CLI(object):
 
         # Check if we have duplicate repositories specified
         if parsed_opts.enablerepo or parsed_opts.disablerepo:
-            duplicate_repos = set(tool_opts.disablerepo) & set(tool_opts.enablerepo)
-            if duplicate_repos:
+            if duplicate_repos := set(tool_opts.disablerepo) & set(
+                tool_opts.enablerepo
+            ):
                 message = "Duplicate repositories were found across disablerepo and enablerepo options:"
                 for repo in duplicate_repos:
                     message += "\n%s" % repo
@@ -530,13 +527,15 @@ def options_from_config_files(cfg_path=None):
     if cfg_path:
         cfg_path = os.path.expanduser(cfg_path)
         if not os.path.exists(cfg_path):
-            raise OSError(2, "No such file or directory: '%s'" % cfg_path)
+            raise OSError(2, f"No such file or directory: '{cfg_path}'")
         paths.insert(0, cfg_path)  # highest priority
 
     for path in paths:
         if os.path.exists(path):
             if not oct(os.stat(path).st_mode)[-4:].endswith("00"):
-                loggerinst.critical("The %s file must only be accessible by the owner (0600)" % path)
+                loggerinst.critical(
+                    f"The {path} file must only be accessible by the owner (0600)"
+                )
             config_file.read(path)
 
             for header in config_file.sections():
@@ -546,11 +545,11 @@ def options_from_config_files(cfg_path=None):
                             # Solving priority
                             if supported_opts[option.lower()] is None:
                                 supported_opts[option] = config_file.get(header, option)
-                                loggerinst.debug("Found %s in %s" % (option, path))
+                                loggerinst.debug(f"Found {option} in {path}")
                         else:
-                            loggerinst.warning("Unsupported option %s in %s" % (option, path))
-                elif header not in headers and header != "DEFAULT":
-                    loggerinst.warning("Unsupported header %s in %s." % (header, path))
+                            loggerinst.warning(f"Unsupported option {option} in {path}")
+                elif header != "DEFAULT":
+                    loggerinst.warning(f"Unsupported header {header} in {path}.")
 
     return supported_opts
 
@@ -567,11 +566,9 @@ def _parse_subscription_manager_serverurl(serverurl):
             raise ValueError("Unable to parse --serverurl. Make sure it starts with http://HOST or https://HOST")
 
         # If there isn't a scheme, add one now
-        serverurl = "https://%s" % serverurl
+        serverurl = f"https://{serverurl}"
 
-    url_parts = urllib.parse.urlsplit(serverurl, allow_fragments=False)
-
-    return url_parts
+    return urllib.parse.urlsplit(serverurl, allow_fragments=False)
 
 
 def _validate_serverurl_parsing(url_parts):
@@ -584,7 +581,7 @@ def _validate_serverurl_parsing(url_parts):
     """
     if url_parts.scheme not in ("https", "http"):
         raise ValueError(
-            "Subscription manager must be accessed over http or https.  %s is not valid" % url_parts.scheme
+            f"Subscription manager must be accessed over http or https.  {url_parts.scheme} is not valid"
         )
 
     if not url_parts.hostname:

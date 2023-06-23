@@ -54,13 +54,11 @@ def set_locale():
         overriding any user set locale in their machine, to actually being the
         ones we require during the process execution.
     """
-    os.environ.update(
-        {
-            "LC_ALL": i18n.SCREENSCRAPED_LOCALE,
-            "LANG": i18n.SCREENSCRAPED_LOCALE,
-            "LANGUAGE": i18n.SCREENSCRAPED_LOCALE,
-        }
-    )
+    os.environ |= {
+        "LC_ALL": i18n.SCREENSCRAPED_LOCALE,
+        "LANG": i18n.SCREENSCRAPED_LOCALE,
+        "LANGUAGE": i18n.SCREENSCRAPED_LOCALE,
+    }
 
 
 def run():

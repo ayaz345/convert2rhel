@@ -35,14 +35,7 @@ def test_skip_kernel_check(shell, convert2rhel):
     # Enable just the rhel-7-server-rpms repo
     shell("yum-config-manager --enable rhel-7-server-rpms --releasever 7Server")
 
-    with convert2rhel(
-        "-y --no-rpm-va --serverurl {} --username {} --password {} --pool {} --debug".format(
-            env.str("RHSM_SERVER_URL"),
-            env.str("RHSM_USERNAME"),
-            env.str("RHSM_PASSWORD"),
-            env.str("RHSM_POOL"),
-        )
-    ) as c2r:
+    with convert2rhel(f'-y --no-rpm-va --serverurl {env.str("RHSM_SERVER_URL")} --username {env.str("RHSM_USERNAME")} --password {env.str("RHSM_PASSWORD")} --pool {env.str("RHSM_POOL")} --debug') as c2r:
         # Verify that using the deprecated environment variable is still allowed and continues the conversion
         # TODO(danmyway) uncomment in #684
         # assert c2r.expect("You are using the deprecated 'CONVERT2RHEL_UNSUPPORTED_SKIP_KERNEL_CURRENCY_CHECK'") == 0
@@ -53,9 +46,7 @@ def test_skip_kernel_check(shell, convert2rhel):
                 "Could not find any kernel packages in repositories to compare against the loaded kernel.",
             ]
         )
-        if c2r_expect_index == 0:
-            pass
-        elif c2r_expect_index == 1:
+        if c2r_expect_index == 1:
             assert AssertionError
         assert c2r.expect("Conversion successful") == 0
     assert c2r.exitstatus == 0

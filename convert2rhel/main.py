@@ -57,7 +57,7 @@ def initialize_logger(log_name, log_dir):
     try:
         logger_module.archive_old_logger_files(log_name, log_dir)
     except (IOError, OSError) as e:
-        print("Warning: Unable to archive previous log: %s" % e)
+        print(f"Warning: Unable to archive previous log: {e}")
 
     logger_module.setup_logger_handler(log_name, log_dir)
 
@@ -94,8 +94,9 @@ def main():
             process_phase = ConversionPhase.ANALYZE_EXIT
             raise _AnalyzeExit()
 
-        pre_conversion_failures = actions.find_actions_of_severity(pre_conversion_results, "SKIP")
-        if pre_conversion_failures:
+        if pre_conversion_failures := actions.find_actions_of_severity(
+            pre_conversion_results, "SKIP"
+        ):
             # The report will be handled in the error handler, after rollback.
             loggerinst.critical("Conversion failed.")
 
@@ -198,8 +199,7 @@ def show_eula():
     """Print out the content of the Red Hat End User License Agreement."""
 
     eula_filepath = os.path.join(utils.DATA_DIR, "GLOBAL_EULA_RHEL")
-    eula_text = utils.get_file_content(eula_filepath)
-    if eula_text:
+    if eula_text := utils.get_file_content(eula_filepath):
         loggerinst.info(eula_text)
     else:
         loggerinst.critical("EULA file not found.")
@@ -245,7 +245,7 @@ def post_ponr_changes():
     loggerinst.task("Final: Update GRUB2 configuration")
     grub.update_grub_after_conversion()
 
-    loggerinst.task("Final: Remove temporary folder %s" % utils.TMP_DIR)
+    loggerinst.task(f"Final: Remove temporary folder {utils.TMP_DIR}")
     utils.remove_tmp_dir()
 
     loggerinst.task("Final: Check kernel boot files")
@@ -283,9 +283,11 @@ def is_help_msg_exit(process_phase, err):
     """After printing the help message, optparse within the toolopts.CLI()
     call terminates the process with sys.exit(0).
     """
-    if process_phase == ConversionPhase.INIT and isinstance(err, SystemExit) and err.args[0] == 0:
-        return True
-    return False
+    return (
+        process_phase == ConversionPhase.INIT
+        and isinstance(err, SystemExit)
+        and err.args[0] == 0
+    )
 
 
 def rollback_changes():

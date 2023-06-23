@@ -21,14 +21,7 @@ def test_yum_distro_sync(convert2rhel, shell):
           and just isn't supported by Red Hat.
     """
 
-    with convert2rhel(
-        "-y --no-rpm-va --serverurl {} --username {} --password {} --pool {} --debug".format(
-            env.str("RHSM_SERVER_URL"),
-            env.str("RHSM_USERNAME"),
-            env.str("RHSM_PASSWORD"),
-            env.str("RHSM_POOL"),
-        )
-    ) as c2r:
+    with convert2rhel(f'-y --no-rpm-va --serverurl {env.str("RHSM_SERVER_URL")} --username {env.str("RHSM_USERNAME")} --password {env.str("RHSM_PASSWORD")} --pool {env.str("RHSM_POOL")} --debug') as c2r:
         c2r.expect("Conversion successful!")
     assert c2r.exitstatus == 0
 
@@ -58,7 +51,4 @@ def condition_test(output, ret_code):
     # on older (original yum) returns 0, but on newer dnf 1
     # just in case if all packages given aren't in rhel repos. If one of them is, ret code is 0 and finishes successfully
     no_packages_marked_error_exists = output.endswith("Error: No packages marked for distribution synchronization.\n")
-    if ret_code == 1 and no_packages_marked_error_exists:
-        return True
-
-    return False
+    return bool(ret_code == 1 and no_packages_marked_error_exists)

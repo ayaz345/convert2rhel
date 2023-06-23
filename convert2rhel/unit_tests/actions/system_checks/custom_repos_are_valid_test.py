@@ -33,10 +33,11 @@ class CallYumCmdMocked(unit_tests.MockFunction):
         self.command = None
 
     def __call__(self, command, *args, **kwargs):
-        if self.fail_once and self.called == 0:
-            self.return_code = 1
-        if self.fail_once and self.called > 0:
-            self.return_code = 0
+        if self.fail_once:
+            if self.called == 0:
+                self.return_code = 1
+            if self.called > 0:
+                self.return_code = 0
         self.called += 1
         self.command = command
         return self.return_string, self.return_code

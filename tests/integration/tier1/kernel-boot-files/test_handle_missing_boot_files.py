@@ -17,7 +17,7 @@ def get_latest_installed_kernel_version(kernel_name):
 
     output = subprocess.check_output(["rpm", "-q", "--last", kernel_name]).decode()
     latest_installed_kernel = output.split("\n", maxsplit=1)[0].split(" ")[0]
-    latest_installed_kernel = latest_installed_kernel.split("%s-" % kernel_name)[-1]
+    latest_installed_kernel = latest_installed_kernel.split(f"{kernel_name}-")[-1]
     return latest_installed_kernel.strip()
 
 
@@ -32,8 +32,8 @@ def remove_kernel_boot_files(shell, kernel_version):
     assert os.path.exists(vmlinuz_file)
 
     # Remove the installed RHEL kernel boot files, simulating that they failed to be generated during the conversion
-    assert shell("rm -f %s" % initramfs_file).returncode == 0
-    assert shell("rm -f %s" % vmlinuz_file).returncode == 0
+    assert shell(f"rm -f {initramfs_file}").returncode == 0
+    assert shell(f"rm -f {vmlinuz_file}").returncode == 0
 
 
 @pytest.mark.missing_kernel_boot_files
@@ -57,14 +57,7 @@ def test_missing_kernel_boot_files(convert2rhel, shell):
     if re.match(r"^(centos|oracle|alma|rocky)-8(\.\d|-latest)$", SYSTEM_RELEASE_ENV):
         kernel_name = "kernel-core"
 
-    with convert2rhel(
-        "-y --no-rpm-va --serverurl {} --username {} --password {} --pool {} --debug".format(
-            env.str("RHSM_SERVER_URL"),
-            env.str("RHSM_USERNAME"),
-            env.str("RHSM_PASSWORD"),
-            env.str("RHSM_POOL"),
-        )
-    ) as c2r:
+    with convert2rhel(f'-y --no-rpm-va --serverurl {env.str("RHSM_SERVER_URL")} --username {env.str("RHSM_USERNAME")} --password {env.str("RHSM_PASSWORD")} --pool {env.str("RHSM_POOL")} --debug') as c2r:
         c2r.expect("Convert: List remaining non-Red Hat packages")
 
         kernel_version = get_latest_installed_kernel_version(kernel_name)
@@ -82,7 +75,12 @@ def test_missing_kernel_boot_files(convert2rhel, shell):
         # assert that the rest of the conversion has succeeded.
         # We'll do that the same way we're telling the user in a warning message how to fix the problem.
         # That is by reinstalling the RHEL kernel and re-running grub2-mkconfig.
-        assert shell("yum reinstall {}-{} -y".format(kernel_name, kernel_version)).returncode == 0
+        assert (
+            shell(
+                f"yum reinstall {kernel_name}-{kernel_version} -y"
+            ).returncode
+            == 0
+        )
         assert shell("grub2-mkconfig -o /boot/grub2/grub.cfg").returncode == 0
 
     assert c2r.exitstatus == 0

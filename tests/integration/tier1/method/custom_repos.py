@@ -12,12 +12,10 @@ def get_system_version(system_release_content=None):
     CentOS Linux release 7.6.1810 (Core)
     CentOS Linux release 8.1.1911 (Core)
     """
-    match = re.search(r".+?(\d+)\.(\d+)\D?", system_release_content)
-    if not match:
+    if match := re.search(r".+?(\d+)\.(\d+)\D?", system_release_content):
+        return namedtuple("Version", ["major", "minor"])(int(match[1]), int(match[2]))
+    else:
         return "not match"
-    version = namedtuple("Version", ["major", "minor"])(int(match.group(1)), int(match.group(2)))
-
-    return version
 
 
 @pytest.mark.custom_repos_conversion
@@ -34,16 +32,12 @@ def test_run_conversion_using_custom_repos(shell, convert2rhel):
         if system_version.major == 7:
             enable_repo_opt = "--enablerepo rhel-7-server-rpms --enablerepo rhel-7-server-optional-rpms --enablerepo rhel-7-server-extras-rpms"
         elif system_version.major == 8:
-            if system_version.minor == 6:
-                enable_repo_opt = (
-                    "--enablerepo rhel-8-for-x86_64-baseos-eus-rpms --enablerepo rhel-8-for-x86_64-appstream-eus-rpms"
-                )
-            else:
-                enable_repo_opt = (
-                    "--enablerepo rhel-8-for-x86_64-baseos-rpms --enablerepo rhel-8-for-x86_64-appstream-rpms"
-                )
-
-    with convert2rhel("-y --no-rpm-va --disable-submgr {} --debug".format(enable_repo_opt)) as c2r:
+            enable_repo_opt = (
+                "--enablerepo rhel-8-for-x86_64-baseos-eus-rpms --enablerepo rhel-8-for-x86_64-appstream-eus-rpms"
+                if system_version.minor == 6
+                else "--enablerepo rhel-8-for-x86_64-baseos-rpms --enablerepo rhel-8-for-x86_64-appstream-rpms"
+            )
+    with convert2rhel(f"-y --no-rpm-va --disable-submgr {enable_repo_opt} --debug") as c2r:
         c2r.expect("Conversion successful!")
     assert c2r.exitstatus == 0
 
@@ -58,4 +52,4 @@ def test_run_conversion_using_custom_repos(shell, convert2rhel):
         else:
             enable_repo_opt = "--enable rhel-8-for-x86_64-baseos-rpms --enable rhel-8-for-x86_64-appstream-rpms"
 
-    shell("yum-config-manager {}".format(enable_repo_opt))
+    shell(f"yum-config-manager {enable_repo_opt}")

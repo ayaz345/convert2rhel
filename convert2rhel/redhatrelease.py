@@ -33,12 +33,11 @@ def get_release_pkg_name():
 
     For RHEL 8, the name is redhat-release.
     """
-    release_pkg_name = "redhat-release-server"
-
-    if system_info.version.major == 8:
-        release_pkg_name = "redhat-release"
-
-    return release_pkg_name
+    return (
+        "redhat-release"
+        if system_info.version.major == 8
+        else "redhat-release-server"
+    )
 
 
 def get_system_release_filepath():
@@ -76,7 +75,7 @@ class YumConf(object):
             # package is replaced but this config file is left unchanged and it keeps the original distroverpkg setting.
             self._comment_out_distroverpkg_tag()
             self._write_altered_yum_conf()
-            loggerinst.info("%s patched." % self._yum_conf_path)
+            loggerinst.info(f"{self._yum_conf_path} patched.")
         else:
             loggerinst.info("Skipping patching, yum configuration file not modified")
 
@@ -105,7 +104,7 @@ class YumConf(object):
         output, _ = utils.run_subprocess(["rpm", "-Vf", conf], print_output=False)
         # rpm -Vf does not return information about the queried file but about all files owned by the rpm
         # that owns the queried file. Character '5' on position 3 means that the file was modified.
-        return True if re.search(r"^.{2}5.*? %s$" % conf, output, re.MULTILINE) else False
+        return bool(re.search(r"^.{2}5.*? %s$" % conf, output, re.MULTILINE))
 
 
 # Code to be executed upon module import

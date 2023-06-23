@@ -154,7 +154,7 @@ class TransactionDisplayCallback(pkgmanager.TransactionDisplay, object):
         # different.
         package = str(package)
 
-        message = message % (self.action[action], package, ts_current, ts_total)
+        message %= (self.action[action], package, ts_current, ts_total)
 
         # The base API will call this callback class on every package update,
         # not matter if it is the same update or not, so, the below statement

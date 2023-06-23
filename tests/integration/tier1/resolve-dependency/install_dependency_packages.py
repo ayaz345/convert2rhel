@@ -13,12 +13,10 @@ def get_system_version(system_release_content=None):
     CentOS Linux release 7.6.1810 (Core)
     CentOS Linux release 8.1.1911 (Core)
     """
-    match = re.search(r".+?(\d+)\.(\d+)\D?", system_release_content)
-    if not match:
+    if match := re.search(r".+?(\d+)\.(\d+)\D?", system_release_content):
+        return namedtuple("Version", ["major", "minor"])(int(match[1]), int(match[2]))
+    else:
         return "not match"
-    version = namedtuple("Version", ["major", "minor"])(int(match.group(1)), int(match.group(2)))
-
-    return version
 
 
 def test_install_dependency_packages(shell):
@@ -43,15 +41,15 @@ def test_install_dependency_packages(shell):
                 "python-requests",  # OAMG-4936
             ]
         elif system_version.major == 8:
-            if "oracle-8" in SYSTEM_RELEASE_ENV:
-                dependency_pkgs = [
+            dependency_pkgs = (
+                [
                     "iwl7260-firmware",  # RHELC-567
                     "iwlax2xx-firmware",  # RHELC-567 - causing problems during the conversion on OL8
                 ]
-            else:
-                dependency_pkgs = [
+                if "oracle-8" in SYSTEM_RELEASE_ENV
+                else [
                     "python39-psycopg2-debug",  # OAMG-5239, OAMG-4944 - package not available on Oracle Linux 8
                 ]
-
+            )
     # installing dependency packages
-    assert shell("yum install -y {}".format(" ".join(dependency_pkgs))).returncode == 0
+    assert shell(f'yum install -y {" ".join(dependency_pkgs)}').returncode == 0

@@ -36,7 +36,7 @@ from six.moves import mock
 def test_is_initramfs_file_valid(latest_installed_kernel, subprocess_output, expected, tmpdir, caplog, monkeypatch):
     initramfs_file = tmpdir.mkdir("/boot").join("initramfs-%s.img")
     initramfs_file = str(initramfs_file)
-    initramfs_file = initramfs_file % latest_installed_kernel
+    initramfs_file %= latest_installed_kernel
     with open(initramfs_file, mode="w") as _:
         pass
 
@@ -47,7 +47,10 @@ def test_is_initramfs_file_valid(latest_installed_kernel, subprocess_output, exp
 
     if not expected:
         assert "Couldn't verify initramfs file. It may be corrupted." in caplog.records[-2].message
-        assert "Output of lsinitrd: %s" % subprocess_output[0] in caplog.records[-1].message
+        assert (
+            f"Output of lsinitrd: {subprocess_output[0]}"
+            in caplog.records[-1].message
+        )
 
 
 @centos8

@@ -74,7 +74,7 @@ STATUS_CODE = {
 
 #: Maps status names back from an integer code.  Used for constructing log
 #: messages and information for the user.
-_STATUS_NAME_FROM_CODE = dict((value, key) for key, value in STATUS_CODE.items())
+_STATUS_NAME_FROM_CODE = {value: key for key, value in STATUS_CODE.items()}
 
 #: When we print a report for the user to view, we want some explanation of
 #: what the results mean
@@ -202,7 +202,7 @@ class Action:
             instead.
         """
         if self._has_run:
-            raise ActionError("Action %s has already run" % self.id)
+            raise ActionError(f"Action {self.id} has already run")
 
         self._has_run = True
 
@@ -308,7 +308,9 @@ class Stage:
         self._has_run = False
 
         python_package = importlib.import_module(self._actions_dir % self.stage_name)
-        self.actions = get_actions(python_package.__path__, python_package.__name__ + ".")
+        self.actions = get_actions(
+            python_package.__path__, f"{python_package.__name__}."
+        )
 
     def check_dependencies(self, _previous_stage_actions=None):
         """
@@ -349,10 +351,10 @@ class Stage:
             running is WARNING or better (WARNING or SUCCESS) and
             failure as worse than WARNING (OVERRIDABLE, ERROR)
         """
-        logger.task("Prepare: %s" % self.task_header)
+        logger.task(f"Prepare: {self.task_header}")
 
         if self._has_run:
-            raise ActionError("Stage %s has already run." % self.stage_name)
+            raise ActionError(f"Stage {self.stage_name} has already run.")
         self._has_run = True
 
         # Make a mutable copy of these parameters so we don't overwrite the caller's data.
@@ -377,15 +379,12 @@ class Stage:
                 to_be = "was"
                 if len(failed_deps) > 1:
                     to_be = "were"
-                message = "Skipped because %s %s not successful" % (
-                    utils.format_sequence_as_message(failed_deps),
-                    to_be,
-                )
+                message = f"Skipped because {utils.format_sequence_as_message(failed_deps)} {to_be} not successful"
 
                 action.set_result(status="SKIP", error_id="SKIP", message=message)
                 skips.append(action)
                 failed_action_ids.add(action.id)
-                logger.error("Skipped %s. %s" % (action.id, message))
+                logger.error(f"Skipped {action.id}. {message}")
                 continue
 
             # Run the Action
@@ -404,7 +403,7 @@ class Stage:
 
             # Categorize the results
             if action.status <= STATUS_CODE["WARNING"]:
-                logger.info("%s has succeeded" % action.id)
+                logger.info(f"{action.id} has succeeded")
                 successes.append(action)
 
             if action.status > STATUS_CODE["WARNING"]:
@@ -460,7 +459,7 @@ def resolve_action_order(potential_actions, previously_resolved_actions=None):
     # into its final order and yielded to the caller.
     unresolved_actions = []
     # ids of the actions which have already been resolved
-    resolved_action_ids = set(action.id for action in previously_resolved_actions)
+    resolved_action_ids = {action.id for action in previously_resolved_actions}
 
     for action in potential_actions:
         if not action.dependencies:
@@ -507,7 +506,7 @@ def resolve_action_order(potential_actions, previously_resolved_actions=None):
     # that there is a circular dependency that needs to be broken.
     if previous_number_of_unresolved_actions != 0:
         raise DependencyError(
-            "Unsatisfied dependencies in these actions: %s" % ", ".join(action.id for action in unresolved_actions)
+            f'Unsatisfied dependencies in these actions: {", ".join(action.id for action in unresolved_actions)}'
         )
 
 
@@ -534,20 +533,21 @@ def run_actions():
     except DependencyError as e:
         # We want to fail early if dependencies are not properly set.  This
         # way we should fail in testing before release.
-        logger.critical("Some dependencies were set on Actions but not present in convert2rhel: %s" % e)
+        logger.critical(
+            f"Some dependencies were set on Actions but not present in convert2rhel: {e}"
+        )
 
     # Run the Actions in system_checks and all subsequent Stages.
     results = system_checks.run()
 
-    # Format results as a dictionary:
-    # {"$Action_id": {"status": int,
-    #                 "error_id": "$error_id",
-    #                 "message": "" or "$message"},
-    # }
-    formatted_results = {}
-    for action in itertools.chain(*results):
-        formatted_results[action.id] = {"status": action.status, "error_id": action.error_id, "message": action.message}
-    return formatted_results
+    return {
+        action.id: {
+            "status": action.status,
+            "error_id": action.error_id,
+            "message": action.message,
+        }
+        for action in itertools.chain(*results)
+    }
 
 
 def find_actions_of_severity(results, severity):
@@ -567,9 +567,11 @@ def find_actions_of_severity(results, severity):
         # matched_actions will contain all actions which were skipped
         # or failed while running.
     """
-    matched_actions = [action for action in results.items() if action[1]["status"] >= STATUS_CODE[severity]]
-
-    return matched_actions
+    return [
+        action
+        for action in results.items()
+        if action[1]["status"] >= STATUS_CODE[severity]
+    ]
 
 
 def format_action_status_message(status_code, action_id, error_id, message):
@@ -598,11 +600,7 @@ def format_action_status_message(status_code, action_id, error_id, message):
 
     # Special case for `message` to not output empty message to the
     # user without message.
-    if message:
-        template += ": {MESSAGE}"
-    else:
-        template += ": [No further information given]"
-
+    template += ": {MESSAGE}" if message else ": [No further information given]"
     return template.format(
         STATUS=status_name,
         ACTION_ID=action_id,

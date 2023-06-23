@@ -70,8 +70,8 @@ class Convert2rhelLatest(actions.Action):
             "repoquery",
             "--disablerepo=*",
             "--enablerepo=convert2rhel",
-            "--releasever=%s" % system_info.version.major,
-            "--setopt=reposdir=%s" % repo_dir,
+            f"--releasever={system_info.version.major}",
+            f"--setopt=reposdir={repo_dir}",
             "--qf",
             "C2R %{NAME}-%{EPOCH}:%{VERSION}-%{RELEASE}.%{ARCH}",
             "convert2rhel",
@@ -111,7 +111,7 @@ class Convert2rhelLatest(actions.Action):
                 # Mainly for debugging purposes to see what is happening if we got
                 # anything else that does not have the C2R identifier at the start
                 # of the line.
-                logger.debug("Got a line without the C2R identifier: %s" % raw_version)
+                logger.debug(f"Got a line without the C2R identifier: {raw_version}")
         raw_output_convert2rhel_versions = temp_raw_output
 
         latest_available_version = ("0", "0.00", "0")
@@ -127,12 +127,12 @@ class Convert2rhelLatest(actions.Action):
                 continue
             convert2rhel_versions.append(parsed_pkg)
 
-        logger.debug("Found %s convert2rhel package(s)" % len(convert2rhel_versions))
+        logger.debug(f"Found {len(convert2rhel_versions)} convert2rhel package(s)")
 
         # This loop will determine the latest available convert2rhel version in the yum repo.
         # It assigns the epoch, version, and release ex: ("0", "0.26", "1.el7") to the latest_available_version variable.
         for package_version in convert2rhel_versions:
-            logger.debug("...comparing version %s" % latest_available_version[1])
+            logger.debug(f"...comparing version {latest_available_version[1]}")
             # rpm.labelCompare(pkg1, pkg2) compare two package version strings and return
             # -1 if latest_version is greater than package_version, 0 if they are equal, 1 if package_version is greater than latest_version
             ver_compare = rpm.labelCompare(
@@ -141,11 +141,13 @@ class Convert2rhelLatest(actions.Action):
 
             if ver_compare > 0:
                 logger.debug(
-                    "...found %s to be newer than %s, updating" % (package_version[2], latest_available_version[1])
+                    f"...found {package_version[2]} to be newer than {latest_available_version[1]}, updating"
                 )
                 latest_available_version = (package_version[1], package_version[2], package_version[3])
 
-        logger.debug("Found %s to be latest available version" % (latest_available_version[1]))
+        logger.debug(
+            f"Found {latest_available_version[1]} to be latest available version"
+        )
         # After the for loop, the latest_available_version variable will gain the epoch, version, and release
         # (e.g. ("0" "0.26" "1.el7")) information from the Convert2RHEL yum repo
         # when the versions are the same the latest_available_version's release field will cause it to evaluate as a later version.
@@ -171,25 +173,24 @@ class Convert2rhelLatest(actions.Action):
                     % (installed_convert2rhel_version, latest_available_version[1])
                 )
 
-            else:
-                if int(system_info.version.major) <= 6:
-                    logger.warning(
-                        "You are currently running %s and the latest version of Convert2RHEL is %s.\n"
-                        "We encourage you to update to the latest version."
-                        % (installed_convert2rhel_version, latest_available_version[1])
-                    )
+            elif int(system_info.version.major) <= 6:
+                logger.warning(
+                    "You are currently running %s and the latest version of Convert2RHEL is %s.\n"
+                    "We encourage you to update to the latest version."
+                    % (installed_convert2rhel_version, latest_available_version[1])
+                )
 
-                else:
-                    self.set_result(
-                        status="ERROR",
-                        error_id="OUT_OF_DATE",
-                        message=(
-                            "You are currently running %s and the latest version of Convert2RHEL is %s.\n"
-                            "Only the latest version is supported for conversion. If you want to ignore"
-                            " this check, then set the environment variable 'CONVERT2RHEL_ALLOW_OLDER_VERSION=1' to continue."
-                            % (installed_convert2rhel_version, latest_available_version[1])
-                        ),
-                    )
-                    return
+            else:
+                self.set_result(
+                    status="ERROR",
+                    error_id="OUT_OF_DATE",
+                    message=(
+                        "You are currently running %s and the latest version of Convert2RHEL is %s.\n"
+                        "Only the latest version is supported for conversion. If you want to ignore"
+                        " this check, then set the environment variable 'CONVERT2RHEL_ALLOW_OLDER_VERSION=1' to continue."
+                        % (installed_convert2rhel_version, latest_available_version[1])
+                    ),
+                )
+                return
 
         logger.info("Latest available Convert2RHEL version is installed.")

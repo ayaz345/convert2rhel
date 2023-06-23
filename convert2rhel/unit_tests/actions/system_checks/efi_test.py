@@ -55,7 +55,7 @@ class TestEFIChecks(unittest.TestCase):
     @unit_tests.mock(efi.system_info, "arch", "x86_64")
     @unit_tests.mock(efi.system_info, "version", _gen_version(7, 9))
     @unit_tests.mock(efi, "logger", GetLoggerMocked())
-    @unit_tests.mock(os.path, "exists", lambda x: not x == "/usr/sbin/efibootmgr")
+    @unit_tests.mock(os.path, "exists", lambda x: x != "/usr/sbin/efibootmgr")
     @unit_tests.mock(
         grub,
         "EFIBootInfo",

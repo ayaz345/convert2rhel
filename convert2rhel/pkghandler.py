@@ -122,11 +122,9 @@ def call_yum_cmd(
     else:
         repos_to_disable = tool_opts.disablerepo
 
-    for repo in repos_to_disable:
-        cmd.append("--disablerepo=%s" % repo)
-
+    cmd.extend(f"--disablerepo={repo}" for repo in repos_to_disable)
     if set_releasever and system_info.releasever:
-        cmd.append("--releasever=%s" % system_info.releasever)
+        cmd.append(f"--releasever={system_info.releasever}")
 
     # Without the release package installed, dnf can't determine the modularity platform ID.
     if system_info.version.major == 8:
@@ -140,9 +138,7 @@ def call_yum_cmd(
         # through subscription-manager
         repos_to_enable = system_info.get_enabled_rhel_repos()
 
-    for repo in repos_to_enable:
-        cmd.append("--enablerepo=%s" % repo)
-
+    cmd.extend(f"--enablerepo={repo}" for repo in repos_to_enable)
     cmd.extend(args)
 
     stdout, returncode = utils.run_subprocess(cmd, print_output=print_output)
@@ -177,14 +173,16 @@ def get_installed_pkgs_by_fingerprint(fingerprints, name=""):
     # possible, converted. This issue does not happen on yum, so we can still
     # use only the package name for it.
     return [
-        "%s.%s" % (pkg.nevra.name, pkg.nevra.arch) for pkg in pkgs_w_fingerprints if pkg.fingerprint in fingerprints
+        f"{pkg.nevra.name}.{pkg.nevra.arch}"
+        for pkg in pkgs_w_fingerprints
+        if pkg.fingerprint in fingerprints
     ]
 
 
 def _get_pkg_fingerprint(signature):
     """Get fingerprint of the key used to sign a package."""
     fingerprint_match = re.search("Key ID (.*)", signature)
-    return fingerprint_match.group(1) if fingerprint_match else "none"
+    return fingerprint_match[1] if fingerprint_match else "none"
 
 
 def get_installed_pkg_information(pkg_name="*"):
@@ -260,7 +258,9 @@ def get_rpm_header(pkg_obj):
             return rpm_hdr
     else:
         # Package not found in the rpm db
-        loggerinst.critical("Unable to find package '%s' in the rpm database." % pkg_obj.name)
+        loggerinst.critical(
+            f"Unable to find package '{pkg_obj.name}' in the rpm database."
+        )
 
 
 def get_installed_pkg_objects(name=None, version=None, release=None, arch=None):
@@ -281,13 +281,13 @@ def _get_installed_pkg_objects_yum(name=None, version=None, release=None, arch=N
     if name:
         pattern = name
         if version:
-            pattern += "-%s" % version
+            pattern += f"-{version}"
 
         if release:
-            pattern += "-%s" % release
+            pattern += f"-{release}"
 
         if arch:
-            pattern += ".%s" % arch
+            pattern += f".{arch}"
 
         return yum_base.rpmdb.returnPackages(patterns=[pattern])
 
@@ -315,13 +315,13 @@ def _get_installed_pkg_objects_dnf(name=None, version=None, release=None, arch=N
         kwargs = {}
 
         if version:
-            kwargs.update({"version__glob": version})
+            kwargs["version__glob"] = version
 
         if release:
-            kwargs.update({"release__glob": release})
+            kwargs["release__glob"] = release
 
         if arch:
-            kwargs.update({"arch__glob": arch})
+            kwargs["arch__glob"] = arch
 
         # name provides "shell-style wildcard match" per
         # https://dnf.readthedocs.io/en/latest/api_queries.html#dnf.query.Query.filter
@@ -335,11 +335,9 @@ def get_third_party_pkgs():
     Get all the third party packages (non-Red Hat and non-original OS-signed)
     that are going to be kept untouched.
     """
-    third_party_pkgs = get_installed_pkgs_w_different_fingerprint(
+    return get_installed_pkgs_w_different_fingerprint(
         system_info.fingerprints_orig_os + system_info.fingerprints_rhel
     )
-
-    return third_party_pkgs
 
 
 def get_installed_pkgs_w_different_fingerprint(fingerprints, name="*"):
@@ -410,9 +408,8 @@ def print_pkg_info(pkgs):
     for nevra, repoid in packages_with_repos.items():
         package_info[nevra]["repoid"] = repoid
 
-    pkg_list = ""
-    for package, info in package_info.items():
-        pkg_list += (
+    pkg_list = "".join(
+        (
             "%-*s  %-*s  %s"
             % (
                 max_nvra_length,
@@ -423,7 +420,8 @@ def print_pkg_info(pkgs):
             )
             + "\n"
         )
-
+        for package, info in package_info.items()
+    )
     pkg_table = header + header_underline + pkg_list
     loggerinst.info(pkg_table)
     return pkg_table
@@ -506,12 +504,7 @@ def get_pkg_nvra(pkg_obj):
     :rtype: str
     """
     nevra = _get_nevra_from_pkg_obj(pkg_obj)
-    return "%s-%s-%s.%s" % (
-        nevra.name,
-        nevra.version,
-        nevra.release,
-        nevra.arch,
-    )
+    return f"{nevra.name}-{nevra.version}-{nevra.release}.{nevra.arch}"
 
 
 def get_pkg_nevra(pkg_obj, include_zero_epoch=False):
@@ -532,23 +525,15 @@ def get_pkg_nevra(pkg_obj, include_zero_epoch=False):
     :rtype: str
     """
     nevra = _get_nevra_from_pkg_obj(pkg_obj)
-    epoch = "" if str(nevra.epoch) == "0" and not include_zero_epoch else str(nevra.epoch) + ":"
-    if pkgmanager.TYPE == "yum":
-        return "%s%s-%s-%s.%s" % (
-            epoch,
-            nevra.name,
-            nevra.version,
-            nevra.release,
-            nevra.arch,
-        )
-
-    return "%s-%s%s-%s.%s" % (
-        nevra.name,
-        epoch,
-        nevra.version,
-        nevra.release,
-        nevra.arch,
+    epoch = (
+        ""
+        if str(nevra.epoch) == "0" and not include_zero_epoch
+        else f"{str(nevra.epoch)}:"
     )
+    if pkgmanager.TYPE == "yum":
+        return f"{epoch}{nevra.name}-{nevra.version}-{nevra.release}.{nevra.arch}"
+
+    return f"{nevra.name}-{epoch}{nevra.version}-{nevra.release}.{nevra.arch}"
 
 
 def get_packager(pkg_obj):
@@ -576,8 +561,9 @@ def list_non_red_hat_pkgs_left():
     Red Hat-signed ones during the conversion.
     """
     loggerinst.info("Listing packages not signed by Red Hat")
-    non_red_hat_pkgs = get_installed_pkgs_w_different_fingerprint(system_info.fingerprints_rhel)
-    if non_red_hat_pkgs:
+    if non_red_hat_pkgs := get_installed_pkgs_w_different_fingerprint(
+        system_info.fingerprints_rhel
+    ):
         loggerinst.info("The following packages were left unchanged.")
         print_pkg_info(non_red_hat_pkgs)
     else:
@@ -596,11 +582,11 @@ def remove_pkgs_unless_from_redhat(pkgs_to_remove, backup=True):
         loggerinst.info("\nNothing to do.")
         return
 
-    loggerinst.warning("Removing the following %s packages:" % str(len(pkgs_to_remove)))
+    loggerinst.warning(f"Removing the following {len(pkgs_to_remove)} packages:")
     print_pkg_info(pkgs_to_remove)
     loggerinst.info("\n")
     remove_pkgs([get_pkg_nvra(pkg) for pkg in pkgs_to_remove], backup=backup)
-    loggerinst.debug("Successfully removed %s packages" % str(len(pkgs_to_remove)))
+    loggerinst.debug(f"Successfully removed {len(pkgs_to_remove)} packages")
 
 
 @utils.run_as_child_process
@@ -627,7 +613,7 @@ def _get_packages_to_remove(pkgs):
         temp = "." * (50 - len(pkg) - 2)
         pkg_objects = get_installed_pkgs_w_different_fingerprint(system_info.fingerprints_rhel, pkg)
         pkgs_to_remove.extend(pkg_objects)
-        loggerinst.info("%s %s %s" % (pkg, temp, str(len(pkg_objects))))
+        loggerinst.info(f"{pkg} {temp} {len(pkg_objects)}")
 
     return pkgs_to_remove
 
@@ -645,7 +631,7 @@ def get_system_packages_for_replacement():
     packages_with_fingerprints = get_installed_pkg_information()
 
     return [
-        "%s.%s" % (pkg.nevra.name, pkg.nevra.arch)
+        f"{pkg.nevra.name}.{pkg.nevra.arch}"
         for pkg in packages_with_fingerprints
         if pkg.fingerprint in fingerprints
     ]
@@ -689,12 +675,10 @@ def install_rhel_kernel():
     if ret_code != 0:
         loggerinst.critical("Error occured while attempting to install the RHEL kernel")
 
-    # Check if kernel with same version is already installed.
-    # Example output from yum and dnf:
-    #  "Package kernel-4.18.0-193.el8.x86_64 is already installed."
-    already_installed = re.search(r" (.*?)(?: is)? already installed", output, re.MULTILINE)
-    if already_installed:
-        rhel_kernel_nevra = already_installed.group(1)
+    if already_installed := re.search(
+        r" (.*?)(?: is)? already installed", output, re.MULTILINE
+    ):
+        rhel_kernel_nevra = already_installed[1]
         non_rhel_kernels = get_installed_pkgs_w_different_fingerprint(system_info.fingerprints_rhel, "kernel")
         for non_rhel_kernel in non_rhel_kernels:
             # We're comparing to NEVRA since that's what yum/dnf prints out
@@ -725,15 +709,15 @@ def handle_no_newer_rhel_kernel_available():
             # of them - the one that has the same version as the available RHEL
             # kernel
             older = available[-1]
-            remove_pkgs(pkgs_to_remove=["kernel-%s" % older], backup=False)
-            call_yum_cmd(command="install", args=["kernel-%s" % older])
+            remove_pkgs(pkgs_to_remove=[f"kernel-{older}"], backup=False)
+            call_yum_cmd(command="install", args=[f"kernel-{older}"])
         else:
             replace_non_rhel_installed_kernel(installed[0])
 
         return
 
     # Install the latest out of the available non-clashing RHEL kernels
-    call_yum_cmd(command="install", args=["kernel-%s" % to_install[-1]])
+    call_yum_cmd(command="install", args=[f"kernel-{to_install[-1]}"])
 
 
 def get_kernel_availability():
@@ -745,8 +729,7 @@ def get_kernel_availability():
 
 
 def get_kernel(kernels_raw):
-    for kernel in re.findall(r"kernel.*?\s+(\S+)\s+\S+", kernels_raw, re.MULTILINE):
-        yield kernel
+    yield from re.findall(r"kernel.*?\s+(\S+)\s+\S+", kernels_raw, re.MULTILINE)
 
 
 def replace_non_rhel_installed_kernel(version):
@@ -763,7 +746,7 @@ def replace_non_rhel_installed_kernel(version):
     )
     utils.ask_to_continue()
 
-    pkg = "kernel-%s" % version
+    pkg = f"kernel-{version}"
 
     # For downloading the RHEL kernel we need to use the RHEL repositories.
     repos_to_enable = system_info.get_enabled_rhel_repos()
@@ -776,22 +759,22 @@ def replace_non_rhel_installed_kernel(version):
     if not path:
         loggerinst.critical("Unable to download the RHEL kernel package.")
 
-    loggerinst.info("Replacing %s %s with RHEL kernel with the same NEVRA ... " % (system_info.name, pkg))
+    loggerinst.info(
+        f"Replacing {system_info.name} {pkg} with RHEL kernel with the same NEVRA ... "
+    )
     output, ret_code = utils.run_subprocess(
-        # The --nodeps is needed as some kernels depend on system-release (alias for redhat-release) and that package
-        # is not installed at this stage.
         [
             "rpm",
             "-i",
             "--force",
             "--nodeps",
             "--replacepkgs",
-            "%s*" % os.path.join(utils.TMP_DIR, pkg),
+            f"{os.path.join(utils.TMP_DIR, pkg)}*",
         ],
         print_output=False,
     )
     if ret_code != 0:
-        loggerinst.critical("Unable to replace the kernel package: %s" % output)
+        loggerinst.critical(f"Unable to replace the kernel package: {output}")
 
     loggerinst.info("\nRHEL %s installed.\n" % pkg)
 
@@ -839,18 +822,23 @@ def fix_default_kernel():
     kernel_sys_cfg = utils.get_file_content("/etc/sysconfig/kernel")
 
     possible_kernels = ["kernel-uek", "kernel-plus"]
-    kernel_to_change = next(
-        iter(kernel for kernel in possible_kernels if kernel in kernel_sys_cfg),
+    if kernel_to_change := next(
+        iter(
+            kernel for kernel in possible_kernels if kernel in kernel_sys_cfg
+        ),
         None,
-    )
-    if kernel_to_change:
+    ):
         loggerinst.warning("Detected leftover boot kernel, changing to RHEL kernel")
         # need to change to "kernel" in rhel7 and "kernel-core" in rhel8
         new_kernel_str = "DEFAULTKERNEL=" + ("kernel" if system_info.version.major == 7 else "kernel-core")
 
-        kernel_sys_cfg = kernel_sys_cfg.replace("DEFAULTKERNEL=" + kernel_to_change, new_kernel_str)
+        kernel_sys_cfg = kernel_sys_cfg.replace(
+            f"DEFAULTKERNEL={kernel_to_change}", new_kernel_str
+        )
         utils.store_content_to_file("/etc/sysconfig/kernel", kernel_sys_cfg)
-        loggerinst.info("Boot kernel %s was changed to %s" % (kernel_to_change, new_kernel_str))
+        loggerinst.info(
+            f"Boot kernel {kernel_to_change} was changed to {new_kernel_str}"
+        )
     else:
         loggerinst.debug("Boot kernel validated.")
 
@@ -877,7 +865,7 @@ def fix_invalid_grub2_entries():
     for entry in boot_entries:
         # The boot loader entries in /boot/loader/entries/<machine-id>-<kernel-version>.conf
         if machine_id.strip() not in os.path.basename(entry):
-            loggerinst.debug("Removing boot entry %s" % entry)
+            loggerinst.debug(f"Removing boot entry {entry}")
             os.remove(entry)
 
     # Removing a boot entry that used to be the default makes grubby to choose a different entry as default, but we will
@@ -888,7 +876,9 @@ def fix_invalid_grub2_entries():
         # pick one entry in any case.
         loggerinst.warning("Couldn't get the default GRUB2 boot loader entry:\n%s" % output)
         return
-    loggerinst.debug("Setting RHEL kernel %s as the default boot loader entry." % output.strip())
+    loggerinst.debug(
+        f"Setting RHEL kernel {output.strip()} as the default boot loader entry."
+    )
     output, ret_code = utils.run_subprocess(["/usr/sbin/grubby", "--set-default", output.strip()])
     if ret_code:
         loggerinst.warning("Couldn't set the default GRUB2 boot loader entry:\n%s" % output)
@@ -906,7 +896,7 @@ def install_additional_rhel_kernel_pkgs(additional_pkgs):
     pkg_names = [p.nevra.name.replace(ol_kernel_ext, "", 1) for p in additional_pkgs]
     for name in set(pkg_names):
         if name != "kernel":
-            loggerinst.info("Installing RHEL %s" % name)
+            loggerinst.info(f"Installing RHEL {name}")
             call_yum_cmd("install", args=[name])
 
 
@@ -950,14 +940,7 @@ def filter_installed_pkgs(pkg_names):
     :return: A list of packages that are present on the system.
     :rtype: list[str]
     """
-    rpms_present = []
-    for pkg in pkg_names:
-        # Check for already installed packages.
-        # If a package is installed, add it to a list which is returned.
-        if system_info.is_rpm_installed(pkg):
-            rpms_present.append(pkg)
-
-    return rpms_present
+    return [pkg for pkg in pkg_names if system_info.is_rpm_installed(pkg)]
 
 
 def get_pkg_names_from_rpm_paths(rpm_paths):
@@ -967,10 +950,7 @@ def get_pkg_names_from_rpm_paths(rpm_paths):
     :return: A list of package names extracted from the rpm filepath.
     :rtype: list
     """
-    pkg_names = []
-    for rpm_path in rpm_paths:
-        pkg_names.append(utils.get_package_name_from_rpm(rpm_path))
-    return pkg_names
+    return [utils.get_package_name_from_rpm(rpm_path) for rpm_path in rpm_paths]
 
 
 @utils.run_as_child_process
@@ -997,13 +977,13 @@ def get_total_packages_to_update(reposdir):
     """
     packages = []
 
-    if pkgmanager.TYPE == "yum":
-        packages = _get_packages_to_update_yum()
-    elif pkgmanager.TYPE == "dnf":
+    if pkgmanager.TYPE == "dnf":
         # We're using the reposdir with dnf only because we currently hardcode
         # the repofiles for RHEL 8 derivatives only.
         packages = _get_packages_to_update_dnf(reposdir=reposdir)
 
+    elif pkgmanager.TYPE == "yum":
+        packages = _get_packages_to_update_yum()
     return set(packages)
 
 
@@ -1013,12 +993,9 @@ def _get_packages_to_update_yum():
     :return: Return a list of packages that needs to be updated.
     :rtype: list[str] | list
     """
-    all_packages = []
     base = pkgmanager.YumBase()
     packages = base.doPackageLists(pkgnarrow="updates")
-    for package in packages.updates:
-        all_packages.append(package.name)
-
+    all_packages = [package.name for package in packages.updates]
     base.close()
     del base
     return all_packages
@@ -1030,7 +1007,6 @@ def _get_packages_to_update_dnf(reposdir):
     :param reposdir: The path to the hardcoded repositories for EUS (If any).
     :type reposdir: str | None
     """
-    packages = []
     base = pkgmanager.Base()
 
     # If we have a reposdir, that means we are trying to check the packages
@@ -1054,11 +1030,7 @@ def _get_packages_to_update_dnf(reposdir):
     base.upgrade_all()
     base.resolve()
 
-    # Iterate over each and every one of them and append to the packages list
-    for package in base.transaction:
-        packages.append(package.name)
-
-    return packages
+    return [package.name for package in base.transaction]
 
 
 def compare_package_versions(version1, version2):
@@ -1101,15 +1073,13 @@ def compare_package_versions(version1, version2):
     # ensure package names match, error if not
     if version1_components[0] != version2_components[0]:
         raise ValueError(
-            "The package names ('%s' and '%s') do not match. Can only compare versions for the same packages."
-            % (version1_components[0], version2_components[0])
+            f"The package names ('{version1_components[0]}' and '{version2_components[0]}') do not match. Can only compare versions for the same packages."
         )
 
     # ensure package arches match, error if not
     if version1_components[4] != version2_components[4] and all(([version1_components[4]], version2_components[4])):
         raise ValueError(
-            "The arches ('%s' and '%s') do not match. Can only compare versions for the same arches."
-            % (version1_components[4], version2_components[4])
+            f"The arches ('{version1_components[4]}' and '{version2_components[4]}') do not match. Can only compare versions for the same arches."
         )
 
     # create list containing EVR for comparison
@@ -1159,33 +1129,24 @@ def _validate_parsed_fields(package, name, epoch, version, release, arch):
     :raises ValueError: If any of the fields are invalid, raise ValueError.
     """
 
-    errors = []
     pkg_length = len(package)
-    seperators = 4
-
+    errors = []
     if name is None or not PKG_NAME.match(name):
-        errors.append("name : %s" % name if name else "name : [None]")
+        errors.append(f"name : {name}" if name else "name : [None]")
     if epoch is not None and not PKG_EPOCH.match(epoch):
-        errors.append("epoch : %s" % epoch)
+        errors.append(f"epoch : {epoch}")
     if version is None or not PKG_VERSION.match(version):
-        errors.append("version : %s" % version if version else "version : [None]")
+        errors.append(f"version : {version}" if version else "version : [None]")
     if release is None or not PKG_RELEASE.match(release):
-        errors.append("release : %s" % release if release else "release : [None]")
+        errors.append(f"release : {release}" if release else "release : [None]")
     if arch is not None and arch not in PKG_ARCH:
-        errors.append("arch : %s" % arch)
+        errors.append(f"arch : {arch}")
 
     if errors:
-        raise ValueError("The following field(s) are invalid - %s" % ", ".join(errors))
+        raise ValueError(f'The following field(s) are invalid - {", ".join(errors)}')
 
     pkg_fields = [name, epoch, version, release, arch]
-    # this loop determines the number of separators required for each package type. The separators
-    # variable starts at 4 since a package with no None fields has 4 seperator characters, 1 None fields
-    # means there will be 3 separator characters and 2 None fields means there will be 2 seperator characters
-
-    for field in pkg_fields:
-        if field is None:
-            seperators -= 1
-
+    seperators = 4 - sum(1 for field in pkg_fields if field is None)
     # convert None fields to empty strings for concatenation
     pkg_fields = [(i or "") for i in (name, epoch, version, release, arch)]
 
@@ -1193,8 +1154,7 @@ def _validate_parsed_fields(package, name, epoch, version, release, arch):
     parsed_pkg_length = len("".join(pkg_fields)) + seperators
     if pkg_length != parsed_pkg_length:
         raise ValueError(
-            "Invalid package - %s, packages need to be in one of the following formats: NEVRA, NEVR, NVRA, NVR, ENVRA, ENVR."
-            " Reason: The total length of the parsed package fields does not equal the package length," % package
+            f"Invalid package - {package}, packages need to be in one of the following formats: NEVRA, NEVR, NVRA, NVR, ENVRA, ENVR. Reason: The total length of the parsed package fields does not equal the package length,"
         )
 
 
@@ -1218,7 +1178,6 @@ def _parse_pkg_with_yum(pkg):
             release = release_arch
             arch = None
 
-    # package is in either ENVR, ENVRA, NVR or NVRA
     else:
         # splitFilename doesn't work with packages in NEVRA/NEVR format, that's why we are using it only here.
         (name, version, release, epoch, arch) = pkgmanager.splitFilename(pkg)
@@ -1228,12 +1187,9 @@ def _parse_pkg_with_yum(pkg):
         if arch not in PKG_ARCH:
             temp_release = arch
             arch = None
-            release = "%s.%s" % (release, temp_release)
+            release = f"{release}.{temp_release}"
 
-    # convert any empty strings to None for consistency
-    pkg_ver_components = tuple((i or None) for i in (name, epoch, version, release, arch))
-
-    return pkg_ver_components
+    return tuple((i or None) for i in (name, epoch, version, release, arch))
 
 
 def _parse_pkg_with_dnf(pkg):
@@ -1284,8 +1240,7 @@ def _parse_pkg_with_dnf(pkg):
         # therefore the package entered is invalid and/or in the wrong format
         if no_arch_data is None:
             raise ValueError(
-                "Invalid package - %s, packages need to be in one of the following"
-                " formats: NEVRA, NEVR, NVRA, NVR, ENVRA, ENVR." % pkg
+                f"Invalid package - {pkg}, packages need to be in one of the following formats: NEVRA, NEVR, NVRA, NVR, ENVRA, ENVR."
             )
 
         name = no_arch_data.name
@@ -1298,5 +1253,4 @@ def _parse_pkg_with_dnf(pkg):
     if epoch is not None:
         epoch = str(epoch)
 
-    pkg_ver_components = (name, epoch, version, release, arch)
-    return pkg_ver_components
+    return name, epoch, version, release, arch

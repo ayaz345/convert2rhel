@@ -13,20 +13,10 @@ from convert2rhel.unit_tests import get_pytest_marker
 
 if sys.version_info[:2] <= (2, 7):
     import mock  # pylint: disable=import-error
-else:
-    from unittest import mock  # pylint: disable=no-name-in-module
-
-# We are injecting a instance of `mock.Mock()` for `Depsolve` class and
-# `callback` module, as when we run the tests under CentOS 7, it fails by saying
-# that `pkgmanager.callback.Depsolve` can't be imported as it is an import from
-# DNF, not YUM.
-# This implies in us mocking those targets on Python 2.7, as DNF is only
-# available on Python 3+.
-# Not a perfect solution, but a needed one since we are inheriting this
-# class/module in the dnf handler module.
-if sys.version_info[:2] <= (2, 7):
     pkgmanager.Depsolve = mock.Mock()
     pkgmanager.callback = mock.Mock()
+else:
+    from unittest import mock  # pylint: disable=no-name-in-module
 
 
 @pytest.fixture(scope="session")
@@ -87,10 +77,7 @@ def read_std(capsys, is_py2):
 
     def factory():
         stdouterr = capsys.readouterr()
-        if is_py2:
-            return stdouterr
-        else:
-            return stdouterr.out, stdouterr.err
+        return stdouterr if is_py2 else (stdouterr.out, stdouterr.err)
 
     return factory
 
@@ -125,21 +112,17 @@ def system_cert_with_target_path(monkeypatch, tmpdir, request):
     .. seealso::
         https://docs.pytest.org/en/7.1.x/how-to/fixtures.html#using-markers-to-pass-data-to-fixtures
     """
-    cert_file_returns = get_pytest_marker(request, "cert_filename")
-
-    if not cert_file_returns:
-        temporary_filename = "filename"
-    else:
+    if cert_file_returns := get_pytest_marker(request, "cert_filename"):
         temporary_filename = cert_file_returns.args[0]
 
+    else:
+        temporary_filename = "filename"
     tmp_file = tmpdir / temporary_filename
 
     monkeypatch.setattr(cert.SystemCert, "_get_cert", value=mock.Mock(return_value=("anything", "anything")))
     monkeypatch.setattr(cert.SystemCert, "_get_target_cert_path", value=mock.Mock(return_value=str(tmp_file)))
 
-    sys_cert = cert.SystemCert()
-
-    return sys_cert
+    return cert.SystemCert()
 
 
 @pytest.fixture
@@ -234,7 +217,9 @@ def pretend_os(request, pkg_root, monkeypatch):
     monkeypatch.setattr(
         utils,
         "DATA_DIR",
-        value=str(pkg_root / ("convert2rhel/data/%s/x86_64/" % system_version_major)),
+        value=str(
+            pkg_root / f"convert2rhel/data/{system_version_major}/x86_64/"
+        ),
     )
     monkeypatch.setattr(
         redhatrelease,
@@ -244,7 +229,7 @@ def pretend_os(request, pkg_root, monkeypatch):
     monkeypatch.setattr(
         utils,
         "get_file_content",
-        value=lambda _: "%s release %s" % (system_name, system_version),
+        value=lambda _: f"{system_name} release {system_version}",
     )
     monkeypatch.setattr(
         system_info,

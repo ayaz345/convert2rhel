@@ -77,9 +77,7 @@ class RunSubprocessMocked(unit_tests.MockFunction):
         self.cmd = cmd
         self.called += 1
 
-        if self.tuples:
-            return self.tuples
-        return self.default_tuple
+        return self.tuples if self.tuples else self.default_tuple
 
 
 class PromptUserLoopMocked(unit_tests.MockFunction):
@@ -87,15 +85,11 @@ class PromptUserLoopMocked(unit_tests.MockFunction):
         self.called = {}
 
     def __call__(self, *args, **kwargs):
-        return_value = ""
-
         # args[0] is the current question being asked
         if args[0] not in self.called:
             self.called[args[0]] = 0
 
-        if self.called[args[0]] >= 1:
-            return_value = "test"
-
+        return_value = "test" if self.called[args[0]] >= 1 else ""
         self.called[args[0]] += 1
         return return_value
 
@@ -1214,9 +1208,7 @@ def test_enable_repos_rhel_repoids(
     pretend_os, rhel_repoids, subprocess, should_raise, expected, expected_message, monkeypatch, caplog
 ):
     cmd_mock = ["subscription-manager", "repos"]
-    for repo in rhel_repoids:
-        cmd_mock.append("--enable=%s" % repo)
-
+    cmd_mock.extend(f"--enable={repo}" for repo in rhel_repoids)
     run_subprocess_mock = mock.Mock(
         side_effect=unit_tests.run_subprocess_side_effect(
             (cmd_mock, subprocess),
@@ -1273,9 +1265,7 @@ def test_enable_repos_rhel_repoids_fallback_default_rhsm(
     caplog,
 ):
     cmd_mock = ["subscription-manager", "repos"]
-    for repo in rhel_repoids:
-        cmd_mock.append("--enable=%s" % repo)
-
+    cmd_mock.extend(f"--enable={repo}" for repo in rhel_repoids)
     run_subprocess_mock = mock.Mock(side_effect=[subprocess, subprocess2])
     monkeypatch.setattr(
         utils,
@@ -1332,9 +1322,7 @@ def test_enable_repos_toolopts_enablerepo(
     caplog,
 ):
     cmd_mock = ["subscription-manager", "repos"]
-    for repo in toolopts_enablerepo:
-        cmd_mock.append("--enable=%s" % repo)
-
+    cmd_mock.extend(f"--enable={repo}" for repo in toolopts_enablerepo)
     run_subprocess_mock = mock.Mock(
         side_effect=unit_tests.run_subprocess_side_effect(
             (cmd_mock, subprocess),
@@ -1395,7 +1383,7 @@ class TestRollback(object):
     ),
 )
 def test_lock_releasever_in_rhel_repositories(subprocess, expected, monkeypatch, caplog):
-    cmd = ["subscription-manager", "release", "--set=%s" % system_info.releasever]
+    cmd = ["subscription-manager", "release", f"--set={system_info.releasever}"]
     run_subprocess_mock = mock.Mock(
         side_effect=unit_tests.run_subprocess_side_effect(
             (cmd, subprocess),

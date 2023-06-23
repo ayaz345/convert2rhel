@@ -59,10 +59,7 @@ class EnsureKernelModulesCompatibility(actions.Action):
 
     def _get_rhel_supported_kmods(self):
         """Return set of target RHEL supported kernel modules."""
-        basecmd = [
-            "repoquery",
-            "--releasever=%s" % system_info.releasever,
-        ]
+        basecmd = ["repoquery", f"--releasever={system_info.releasever}"]
 
         if system_info.version.major == 8:
             basecmd.append("--setopt=module_platform_id=platform:el8")
@@ -84,8 +81,7 @@ class EnsureKernelModulesCompatibility(actions.Action):
         if not kmod_pkgs:
             logger.debug("Output of the previous repoquery command:\n{0}".format(kmod_pkgs_str))
             raise RHELKernelModuleNotFound(
-                "No packages containing kernel modules available in the enabled repositories (%s)."
-                % ", ".join(system_info.get_enabled_rhel_repos())
+                f'No packages containing kernel modules available in the enabled repositories ({", ".join(system_info.get_enabled_rhel_repos())}).'
             )
 
         logger.info(
@@ -138,16 +134,14 @@ class EnsureKernelModulesCompatibility(actions.Action):
         """
 
         pkgs_groups = itertools.groupby(sorted(pkgs), lambda pkg_name: pkg_name.split(":")[0])
-        list_of_sorted_pkgs = []
-        for distinct_kernel_pkgs in pkgs_groups:
-            if distinct_kernel_pkgs[0].startswith(("kernel", "kmod")):
-                list_of_sorted_pkgs.append(
-                    max(
-                        distinct_kernel_pkgs[1],
-                        key=cmp_to_key(pkghandler.compare_package_versions),
-                    )
-                )
-
+        list_of_sorted_pkgs = [
+            max(
+                distinct_kernel_pkgs[1],
+                key=cmp_to_key(pkghandler.compare_package_versions),
+            )
+            for distinct_kernel_pkgs in pkgs_groups
+            if distinct_kernel_pkgs[0].startswith(("kernel", "kmod"))
+        ]
         return tuple(list_of_sorted_pkgs)
 
     def _get_kmod_comparison_key(self, path):
@@ -190,11 +184,12 @@ class EnsureKernelModulesCompatibility(actions.Action):
         supported in RHEL.
         """
         unsupported_kmods_subpaths = host_kmods - rhel_supported_kmods - set(system_info.kmods_to_ignore)
-        unsupported_kmods_full_paths = [
-            "/lib/modules/{kver}/{kmod}".format(kver=system_info.booted_kernel, kmod=kmod)
+        return [
+            "/lib/modules/{kver}/{kmod}".format(
+                kver=system_info.booted_kernel, kmod=kmod
+            )
             for kmod in unsupported_kmods_subpaths
         ]
-        return unsupported_kmods_full_paths
 
     def run(self):
         """Ensure that the host kernel modules are compatible with RHEL."""
@@ -243,5 +238,5 @@ class EnsureKernelModulesCompatibility(actions.Action):
             self.set_result(
                 status="ERROR",
                 error_id="CANNOT_COMPARE_PACKAGE_VERSIONS",
-                message="Package comparison failed: %s" % e,
+                message=f"Package comparison failed: {e}",
             )

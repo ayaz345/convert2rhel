@@ -43,7 +43,7 @@ def get_latest_build(ownername, projectname, configpath, match_criteria, client=
     builds = get_builds(ownername, projectname, configpath, client, debug)
     for build in builds:
         # Version in COPR contains VERSION-RELEASE string. We need just the release.
-        full_name = "{}-{}".format(build["source_package"]["name"], build["source_package"]["version"])
+        full_name = f'{build["source_package"]["name"]}-{build["source_package"]["version"]}'
         release = build["source_package"]["version"].split("-")[-1]
         if re.match(match_criteria, full_name) or release.startswith(match_criteria):
             return build["id"]
@@ -58,7 +58,7 @@ def _fail(error):
     # dump ENV dictionary
     sys.stderr.write("Passed (or default) environment variables:\n")
     for var, value in ENV_VARS.items():
-        sys.stderr.write("  {}: {}\n".format(var, value))
+        sys.stderr.write(f"  {var}: {value}\n")
     sys.exit(1)
 
 
@@ -72,7 +72,7 @@ def main():
     )
 
     if not build_id:
-        error_msg = "Error: The build with the required release has not been found: {}".format(ENV_VARS["REGEX"])
+        error_msg = f'Error: The build with the required release has not been found: {ENV_VARS["REGEX"]}'
         _fail(error_msg)
 
     # Output the id of the latest matching build

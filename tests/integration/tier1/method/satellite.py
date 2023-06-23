@@ -13,16 +13,11 @@ def test_satellite_conversion(shell, convert2rhel):
 
     assert (
         shell(
-            "wget --no-check-certificate --output-document {} {}".format(SATELLITE_PKG_DST, SATELLITE_PKG_URL)
+            f"wget --no-check-certificate --output-document {SATELLITE_PKG_DST} {SATELLITE_PKG_URL}"
         ).returncode
         == 0
     )
 
-    with convert2rhel(
-        "-y --no-rpm-va -k {} -o {} --debug".format(
-            env.str("SATELLITE_KEY"),
-            env.str("SATELLITE_ORG"),
-        )
-    ) as c2r:
+    with convert2rhel(f'-y --no-rpm-va -k {env.str("SATELLITE_KEY")} -o {env.str("SATELLITE_ORG")} --debug') as c2r:
         pass
     assert c2r.exitstatus == 0

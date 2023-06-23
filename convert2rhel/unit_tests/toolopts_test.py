@@ -34,7 +34,7 @@ from six.moves import mock
 
 def mock_cli_arguments(args):
     """Return a list of cli arguments where the first one is always the name of the executable, followed by 'args'."""
-    return sys.argv[0:1] + args
+    return sys.argv[:1] + args
 
 
 class TestTooloptsParseFromCLI(object):

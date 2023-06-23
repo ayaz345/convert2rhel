@@ -20,14 +20,7 @@ def test_skip_kernel_check(shell, convert2rhel):
         assert shell("mkdir /tmp/s_backup_eus").returncode == 0
         assert shell("mv /usr/share/convert2rhel/repos/* /tmp/s_backup_eus/").returncode == 0
 
-    with convert2rhel(
-        "-y --no-rpm-va --serverurl {} --username {} --password {} --pool {} --debug".format(
-            env.str("RHSM_SERVER_URL"),
-            env.str("RHSM_USERNAME"),
-            env.str("RHSM_PASSWORD"),
-            env.str("RHSM_POOL"),
-        )
-    ) as c2r:
+    with convert2rhel(f'-y --no-rpm-va --serverurl {env.str("RHSM_SERVER_URL")} --username {env.str("RHSM_USERNAME")} --password {env.str("RHSM_PASSWORD")} --pool {env.str("RHSM_POOL")} --debug') as c2r:
         if SYSTEM_RELEASE_ENV in ("centos-7", "oracle-7"):
             c2r.expect("Could not find any kernel from repositories to compare against the loaded kernel.")
         else:
@@ -36,14 +29,7 @@ def test_skip_kernel_check(shell, convert2rhel):
 
     os.environ["CONVERT2RHEL_UNSUPPORTED_SKIP_KERNEL_CURRENCY_CHECK"] = "1"
 
-    with convert2rhel(
-        "--no-rpm-va --serverurl {} --username {} --password {} --pool {} --debug".format(
-            env.str("RHSM_SERVER_URL"),
-            env.str("RHSM_USERNAME"),
-            env.str("RHSM_PASSWORD"),
-            env.str("RHSM_POOL"),
-        )
-    ) as c2r:
+    with convert2rhel(f'--no-rpm-va --serverurl {env.str("RHSM_SERVER_URL")} --username {env.str("RHSM_USERNAME")} --password {env.str("RHSM_PASSWORD")} --pool {env.str("RHSM_POOL")} --debug') as c2r:
         # We need to get past the data collection acknowledgement.
         c2r.expect("Continue with the system conversion?")
         c2r.sendline("y")
@@ -65,8 +51,6 @@ def test_system_not_updated(shell, convert2rhel):
     about that. Also, not updated package its version
     is locked. Display a warning about used version lock.
     """
-    centos_8_pkg_url = "https://vault.centos.org/8.1.1911/BaseOS/x86_64/os/Packages/wpa_supplicant-2.7-1.el8.x86_64.rpm"
-
     if "centos-8" in SYSTEM_RELEASE_ENV:
         # The dnf transaction calculation fails if the maximum number of kernels that can be installed has been reached:
         # "package kernel-4.18.0-348.23.1.el8_5.x86_64 requires kernel-core-uname-r = 4.18.0-348.23.1.el8_5.x86_64,
@@ -77,10 +61,12 @@ def test_system_not_updated(shell, convert2rhel):
         ).output.strip()
         assert shell("yum remove -y kernel*{0}".format(oldest_kernel)).returncode == 0
 
+        centos_8_pkg_url = "https://vault.centos.org/8.1.1911/BaseOS/x86_64/os/Packages/wpa_supplicant-2.7-1.el8.x86_64.rpm"
+
         # Try to downgrade two packages.
         # On CentOS-8 we cannot do the downgrade as the repos contain only the latest package version.
         # We need to install package from older repository as a workaround.
-        assert shell("yum install -y {}".format(centos_8_pkg_url)).returncode == 0
+        assert shell(f"yum install -y {centos_8_pkg_url}").returncode == 0
     else:
         assert shell("yum install openldap wpa_supplicant -y").returncode == 0
         assert shell("yum downgrade openldap wpa_supplicant -y").returncode == 0
@@ -89,14 +75,7 @@ def test_system_not_updated(shell, convert2rhel):
     assert shell("yum versionlock wpa_supplicant").returncode == 0
 
     # Run utility until the reboot
-    with convert2rhel(
-        "-y --no-rpm-va --serverurl {} --username {} --password {} --pool {} --debug".format(
-            env.str("RHSM_SERVER_URL"),
-            env.str("RHSM_USERNAME"),
-            env.str("RHSM_PASSWORD"),
-            env.str("RHSM_POOL"),
-        )
-    ) as c2r:
+    with convert2rhel(f'-y --no-rpm-va --serverurl {env.str("RHSM_SERVER_URL")} --username {env.str("RHSM_USERNAME")} --password {env.str("RHSM_PASSWORD")} --pool {env.str("RHSM_POOL")} --debug') as c2r:
         c2r.expect("WARNING - YUM/DNF versionlock plugin is in use. It may cause the conversion to fail.")
         c2r.expect(r"WARNING - The system has \d+ package\(s\) not updated")
     assert c2r.exitstatus == 0

@@ -25,13 +25,11 @@ def test_verify_logfile_starts_with_command(convert2rhel):
     activation_key = "a-map-of-a-key"
     organization = "SoMe_NumberS-8_a_lettER"
 
-    command_long = "--debug --no-rpm-va --serverurl {} --username {} --password {} --activationkey {} --org {}".format(
-        serverurl, username, password, activation_key, organization
+    command_long = f"--debug --no-rpm-va --serverurl {serverurl} --username {username} --password {password} --activationkey {activation_key} --org {organization}"
+    command_short = f"--debug --no-rpm-va --serverurl {serverurl} -u {username} -p {password} -k {activation_key} -o {organization}"
+    command_verification = (
+        f"convert2rhel --debug --no-rpm-va --serverurl {serverurl}"
     )
-    command_short = "--debug --no-rpm-va --serverurl {} -u {} -p {} -k {} -o {}".format(
-        serverurl, username, password, activation_key, organization
-    )
-    command_verification = "convert2rhel --debug --no-rpm-va --serverurl {}".format(serverurl)
 
     commands = [command_long, command_short]
 
@@ -48,13 +46,10 @@ def test_verify_logfile_starts_with_command(convert2rhel):
             c2r.sendcontrol("c")
 
         with open(C2R_LOG, "r") as logfile:
-            command_line = None
-            for i, line in enumerate(logfile):
-                # The actual command is logged to a second line
-                if i == 1:
-                    command_line = line.strip()
-                    break
-
+            command_line = next(
+                (line.strip() for i, line in enumerate(logfile) if i == 1),
+                None,
+            )
             assert command_verification in command_line
             assert password not in command_line
             assert activation_key not in command_line

@@ -32,7 +32,7 @@ class IsLoadedKernelLatest(actions.Action):
     id = "IS_LOADED_KERNEL_LATEST"
     # disabling here as some of the return statements would be raised as exceptions in normal code
     # but we don't do that in an Action class
-    def run(self):  # pylint: disable= too-many-return-statements
+    def run(self):    # pylint: disable= too-many-return-statements
         """Check if the loaded kernel is behind or of the same version as in yum repos."""
         super(IsLoadedKernelLatest, self).run()
         logger.task("Prepare: Check if the loaded kernel version is the most recent")
@@ -61,7 +61,7 @@ class IsLoadedKernelLatest(actions.Action):
         # hardcoded repofiles, we should use that
         # instead of the system repositories located under /etc/yum.repos.d
         if reposdir:
-            cmd.append("--setopt=reposdir=%s" % reposdir)
+            cmd.append(f"--setopt=reposdir={reposdir}")
 
         # For Oracle/CentOS Linux 8 the `kernel` is just a meta package, instead,
         # we check for `kernel-core`. But 7 releases, the correct way to check is
@@ -71,10 +71,9 @@ class IsLoadedKernelLatest(actions.Action):
         # Append the package name as the last item on the list
         cmd.append(package_to_check)
 
-        unsupported_skip = os.environ.get("CONVERT2RHEL_UNSUPPORTED_SKIP_KERNEL_CURRENCY_CHECK", None)
-
-        # Skip the kernel package check and print a warning if the user used the special environment variable for it
-        if unsupported_skip:
+        if unsupported_skip := os.environ.get(
+            "CONVERT2RHEL_UNSUPPORTED_SKIP_KERNEL_CURRENCY_CHECK", None
+        ):
             logger.warning(
                 "Detected 'CONVERT2RHEL_UNSUPPORTED_SKIP_KERNEL_CURRENCY_CHECK' environment variable, we will skip "
                 "the %s comparison.\n"
@@ -113,7 +112,7 @@ class IsLoadedKernelLatest(actions.Action):
                 # Mainly for debugging purposes to see what is happening if we got
                 # anything else that does not have the C2R identifier at the start
                 # of the line.
-                logger.debug("Got a line without the C2R identifier: %s" % line)
+                logger.debug(f"Got a line without the C2R identifier: {line}")
 
         # If we don't have any packages, then something went wrong, bail out by default
         if not packages:
@@ -136,8 +135,8 @@ class IsLoadedKernelLatest(actions.Action):
         loaded_kernel = uname_output.rsplit(".", 1)[0]
         # append the package name to loaded_kernel and latest_kernel so they can be properly processed by
         # compare_package_versions()
-        latest_kernel_pkg = "%s-%s" % (package_to_check, latest_kernel)
-        loaded_kernel_pkg = "%s-%s" % (package_to_check, loaded_kernel)
+        latest_kernel_pkg = f"{package_to_check}-{latest_kernel}"
+        loaded_kernel_pkg = f"{package_to_check}-{loaded_kernel}"
         try:
             match = compare_package_versions(latest_kernel_pkg, loaded_kernel_pkg)
         except ValueError as exc:
@@ -152,7 +151,7 @@ class IsLoadedKernelLatest(actions.Action):
             repos_message = (
                 "in the enabled system repositories"
                 if not reposdir
-                else "in repositories defined in the %s folder" % reposdir
+                else f"in repositories defined in the {reposdir} folder"
             )
             self.set_result(
                 status="ERROR",

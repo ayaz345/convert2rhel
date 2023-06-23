@@ -104,7 +104,7 @@ class TestIsLoadedKernelLatest:
                         "--quiet",
                         "--qf",
                         "C2R\\t%{BUILDTIME}\\t%{VERSION}-%{RELEASE}\\t%{REPOID}",
-                        "--setopt=reposdir=%s" % fake_reposdir_path,
+                        f"--setopt=reposdir={fake_reposdir_path}",
                         package_name,
                     ),
                     (
@@ -128,8 +128,7 @@ class TestIsLoadedKernelLatest:
         assert is_loaded_kernel_latest_action.error_id == "INVALID_KERNEL_VERSION"
         assert is_loaded_kernel_latest_action.status == actions.STATUS_CODE["ERROR"]
         assert (
-            "The version of the loaded kernel is different from the latest version in repositories defined in the %s folder"
-            % fake_reposdir_path
+            f"The version of the loaded kernel is different from the latest version in repositories defined in the {fake_reposdir_path} folder"
             in is_loaded_kernel_latest_action.message
         )
         assert (
@@ -299,7 +298,7 @@ class TestIsLoadedKernelLatest:
                         "--quiet",
                         "--qf",
                         "C2R\\t%{BUILDTIME}\\t%{VERSION}-%{RELEASE}\\t%{REPOID}",
-                        "--setopt=reposdir=%s" % fake_reposdir_path,
+                        f"--setopt=reposdir={fake_reposdir_path}",
                         "kernel-core",
                     ),
                     (
@@ -620,7 +619,7 @@ class TestIsLoadedKernelLatest:
         assert is_loaded_kernel_latest_action.error_id == "INVALID_KERNEL_VERSION"
         assert is_loaded_kernel_latest_action.status == actions.STATUS_CODE["ERROR"]
         assert (
-            "Latest kernel version available in baseos: %s" % repoquery_kernel_version
+            f"Latest kernel version available in baseos: {repoquery_kernel_version}"
             in is_loaded_kernel_latest_action.message
         )
         assert "Loaded kernel version: %s\n\n" % uname_kernel_version in is_loaded_kernel_latest_action.message

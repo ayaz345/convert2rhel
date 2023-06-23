@@ -59,6 +59,7 @@ def create_pkg_obj(
     manager="yum",
     vendor=None,
 ):
+
     class DumbObj(object):
         pass
 
@@ -68,19 +69,16 @@ def create_pkg_obj(
     obj.epoch = obj.e = epoch
     obj.version = obj.v = version
     obj.release = obj.r = release
-    obj.evr = version + "-" + release
+    obj.evr = f"{version}-{release}"
     obj.arch = arch
     obj.packager = packager
     if vendor:
         obj.vendor = vendor
-    if manager == "yum":
+    if manager == "dnf":
+        obj._from_repo = from_repo if from_repo else "@@System"
+    elif manager == "yum":
         if from_repo:
             obj.yumdb_info.from_repo = from_repo
-    elif manager == "dnf":
-        if from_repo:
-            obj._from_repo = from_repo
-        else:
-            obj._from_repo = "@@System"
     return obj
 
 
@@ -124,15 +122,14 @@ def mock(class_or_module, orig_obj, mock_obj):
             # (e.g. to have the mocked function just as a wrapper for the
             # original function), save it as a temporary attribute
             # named "<original object name>_orig"
-            orig_obj_attr = "%s_orig" % orig_obj
+            orig_obj_attr = f"{orig_obj}_orig"
             setattr(class_or_module, orig_obj_attr, orig_obj_saved)
             # Call the decorated test function
             return_value = None
             try:
-                try:
-                    return_value = func(*args, **kwargs)
-                except:
-                    raise
+                return_value = func(*args, **kwargs)
+            except:
+                raise
             finally:
                 # NOTE: finally need to be used in this way for Python 2.4
                 # Restore the original object
@@ -157,7 +154,7 @@ def safe_repr(obj, short=False):
         result = object.__repr__(obj)
     if not short or len(result) < _MAX_LENGTH:
         return result
-    return result[:_MAX_LENGTH] + " [truncated]..."
+    return f"{result[:_MAX_LENGTH]} [truncated]..."
 
 
 def get_pytest_marker(request, mark_name):
@@ -171,12 +168,11 @@ def get_pytest_marker(request, mark_name):
         * `pytest's get_closest_marker() function which this function wraps <https://docs.pytest.org/en/stable/reference/reference.html#pytest.nodes.Node.get_closest_marker>`_
         * `A technique you might use where you would need to use this function to retrieve a mark's value. <https://docs.pytest.org/en/stable/how-to/fixtures.html#using-markers-to-pass-data-to-fixtures>`_
     """
-    if pytest.__version__.split(".") <= ["3", "6", "0"]:
-        mark = request.node.get_marker(mark_name)
-    else:
-        mark = request.node.get_closest_marker(mark_name)
-
-    return mark
+    return (
+        request.node.get_marker(mark_name)
+        if pytest.__version__.split(".") <= ["3", "6", "0"]
+        else request.node.get_closest_marker(mark_name)
+    )
 
 
 class ExtendedTestCase(unittest.TestCase):
@@ -192,10 +188,7 @@ class ExtendedTestCase(unittest.TestCase):
         Just like self.assertTrue(a in b), but with a nicer default message.
         """
         if member not in container:
-            standard_msg = "%s not found in %s" % (
-                safe_repr(member),
-                safe_repr(container),
-            )
+            standard_msg = f"{safe_repr(member)} not found in {safe_repr(container)}"
             self.fail(self._formatMessage(msg, standard_msg))
 
     def _formatMessage(self, msg, standard_msg):
@@ -208,9 +201,9 @@ class ExtendedTestCase(unittest.TestCase):
         try:
             # don't switch to '{}' formatting in Python 2.X
             # it changes the way unicode input is handled
-            return "%s : %s" % (standard_msg, msg)
+            return f"{standard_msg} : {msg}"
         except UnicodeDecodeError:
-            return "%s : %s" % (safe_repr(standard_msg), safe_repr(msg))
+            return f"{safe_repr(standard_msg)} : {safe_repr(msg)}"
 
 
 class MockFunction(object):
@@ -355,14 +348,13 @@ def create_pkg_information(
     fingerprint=None,
     signature=None,
 ):
-    pkg_info = PackageInformation(
+    return PackageInformation(
         packager,
         vendor,
         PackageNevra(name, epoch, version, release, arch),
         fingerprint,
         signature,
     )
-    return pkg_info
 
 
 class TestPkgObj(object):
@@ -384,6 +376,7 @@ def create_pkg_obj(
     manager="yum",
     vendor=None,
 ):
+
     class DumbObj(object):
         pass
 
@@ -393,7 +386,7 @@ def create_pkg_obj(
     obj.epoch = obj.e = epoch
     obj.version = obj.v = version
     obj.release = obj.r = release
-    obj.evr = version + "-" + release
+    obj.evr = f"{version}-{release}"
     obj.arch = arch
     obj.packager = packager
     if vendor:
@@ -403,10 +396,7 @@ def create_pkg_obj(
         if from_repo:
             obj.yumdb_info.from_repo = from_repo
     elif manager == "dnf":
-        if from_repo:
-            obj._from_repo = from_repo
-        else:
-            obj._from_repo = "@@System"
+        obj._from_repo = from_repo if from_repo else "@@System"
     return obj
 
 
@@ -420,6 +410,7 @@ def mock_decorator(func):
 
 class GetInstalledPkgsWFingerprintsMocked(MockFunction):
     def prepare_test_pkg_tuples_w_fingerprints(self):
+
         class PkgData:
             def __init__(self, pkg_obj, fingerprint):
                 self.pkg_obj = pkg_obj
@@ -428,12 +419,11 @@ class GetInstalledPkgsWFingerprintsMocked(MockFunction):
         obj1 = create_pkg_obj("pkg1")
         obj2 = create_pkg_obj("pkg2")
         obj3 = create_pkg_obj("gpg-pubkey")
-        pkgs = [
+        return [
             PkgData(obj1, "199e2f91fd431d51"),  # RHEL
             PkgData(obj2, "72f97b74ec551f03"),  # OL
             PkgData(obj3, "199e2f91fd431d51"),
-        ]  # RHEL
-        return pkgs
+        ]
 
     def __call__(self, *args, **kwargs):
         return self.prepare_test_pkg_tuples_w_fingerprints()

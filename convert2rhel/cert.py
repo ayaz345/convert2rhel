@@ -38,14 +38,19 @@ class SystemCert(object):
         """Return name of certificate and this directory."""
         cert_dir = os.path.join(utils.DATA_DIR, "rhel-certs")
         if not os.access(cert_dir, os.R_OK | os.X_OK):
-            loggerinst.critical("Error: Could not access %s." % cert_dir)
-        pem_filename = None
-        for filename in os.listdir(cert_dir):
-            if filename.endswith(".pem"):
-                pem_filename = filename
-                break
+            loggerinst.critical(f"Error: Could not access {cert_dir}.")
+        pem_filename = next(
+            (
+                filename
+                for filename in os.listdir(cert_dir)
+                if filename.endswith(".pem")
+            ),
+            None,
+        )
         if not pem_filename:
-            loggerinst.critical("Error: System certificate (.pem) not found in %s." % cert_dir)
+            loggerinst.critical(
+                f"Error: System certificate (.pem) not found in {cert_dir}."
+            )
         return pem_filename, cert_dir
 
     def _get_source_cert_path(self):
@@ -64,7 +69,9 @@ class SystemCert(object):
         except OSError as err:
             loggerinst.critical("OSError({0}): {1}".format(err.errno, err.strerror))
 
-        loggerinst.info("Certificate %s copied to %s." % (self._cert_filename, self._target_cert_dir))
+        loggerinst.info(
+            f"Certificate {self._cert_filename} copied to {self._target_cert_dir}."
+        )
 
     def remove(self):
         """Remove certificate (.pem), which was copied to system's cert dir."""
@@ -72,7 +79,7 @@ class SystemCert(object):
 
         try:
             os.remove(self._target_cert_path)
-            loggerinst.info("Certificate %s removed" % self._target_cert_path)
+            loggerinst.info(f"Certificate {self._target_cert_path} removed")
         except OSError as err:
             if err.errno == errno.ENOENT:
                 # Resolves RHSM error when removing certs, as the system might not have installed any certs yet

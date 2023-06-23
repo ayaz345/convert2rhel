@@ -99,7 +99,7 @@ class DependencySolverProgressIndicatorCallback(pkgmanager.Depsolve):
             message = self._DEPSOLVE_MODES[mode]
         except KeyError:
             message = None
-            loggerinst.debug("Unknown operation (%s) for package '%s'." % (mode, pkg))
+            loggerinst.debug(f"Unknown operation ({mode}) for package '{pkg}'.")
 
         if message:
             loggerinst.info(message, pkg)
@@ -179,14 +179,14 @@ class PackageDownloadCallback(pkgmanager.DownloadProgress):
         :type err_msg: str
         """
         package = pkgmanager.pycomp.unicode(payload)
-        size = int(payload.download_size)
-
         if status == pkgmanager.callback.STATUS_MIRROR:
             pass
         elif status == pkgmanager.callback.STATUS_DRPM:
             self.done_drpm += 1
         else:
             self.done_files += 1
+            size = int(payload.download_size)
+
             self.done_size += size
 
         message = None
@@ -202,7 +202,7 @@ class PackageDownloadCallback(pkgmanager.DownloadProgress):
                     self.total_drpm,
                     package,
                 )
-                message = "%s - %s" % (message, err_msg)
+                message = f"{message} - {err_msg}"
             else:
                 message = "(%d/%d) [%s]: %s" % (
                     self.done_files,
@@ -210,9 +210,8 @@ class PackageDownloadCallback(pkgmanager.DownloadProgress):
                     self._STATUS_MAPPING.get(status, "Unknown"),
                     package,
                 )
-        else:
-            if self.total_files > 1:
-                message = "(%d/%d): %s" % (self.done_files, self.total_files, package)
+        elif self.total_files > 1:
+            message = "(%d/%d): %s" % (self.done_files, self.total_files, package)
 
         if message:
             loggerinst.info(message)
@@ -257,7 +256,7 @@ class TransactionDisplayCallback(pkgmanager.TransactionDisplay):
         # different.
         package = str(package)
 
-        message = "%s: %s [%s/%s]" % (pkgmanager.transaction.ACTIONS.get(action), package, ts_done, ts_total)
+        message = f"{pkgmanager.transaction.ACTIONS.get(action)}: {package} [{ts_done}/{ts_total}]"
 
         # The base API will call this callback class on every package update,
         # no matter if it is the same update or not, so, the below statement

@@ -140,8 +140,7 @@ class SystemInfo(object):
 
     def _get_system_name(self, system_release_content=None):
         content = self.system_release_file_content if not system_release_content else system_release_content
-        name = re.search(r"(.+?)\s?(?:release\s?)?\d", content).group(1)
-        return name
+        return re.search(r"(.+?)\s?(?:release\s?)?\d", content)[1]
 
     def _get_system_version(self, system_release_content=None):
         """Return a namedtuple with major and minor elements, both of an int type.
@@ -156,10 +155,10 @@ class SystemInfo(object):
         if not match:
             from convert2rhel import redhatrelease
 
-            self.logger.critical("Couldn't get system version from %s" % redhatrelease.get_system_release_filepath())
-        version = Version(int(match.group(1)), int(match.group(2)))
-
-        return version
+            self.logger.critical(
+                f"Couldn't get system version from {redhatrelease.get_system_release_filepath()}"
+            )
+        return Version(int(match[1]), int(match[2]))
 
     def _get_system_distribution_id(self, system_release_content=None):
         """Return the distribution id from the system release file.
@@ -179,10 +178,7 @@ class SystemInfo(object):
         """
         content = self.system_release_file_content if not system_release_content else system_release_content
         match = re.search(r"(?<=\()[^)]*(?=\))", content)
-        if not match:
-            return None
-
-        return match.group()
+        return None if not match else match.group()
 
     def _get_architecture(self):
         arch, _ = utils.run_subprocess(["uname", "-i"], print_output=False)
@@ -190,12 +186,11 @@ class SystemInfo(object):
         return arch
 
     def _get_cfg_filename(self):
-        cfg_filename = "%s-%d-%s.cfg" % (
+        return "%s-%d-%s.cfg" % (
             self.id,
             self.version.major,
             self.arch,
         )
-        return cfg_filename
 
     def _get_cfg_content(self):
         return self._get_cfg_section("system_info")
@@ -233,7 +228,7 @@ class SystemInfo(object):
             return self.cfg_content[option_name]
         else:
             self.logger.error(
-                "Internal error: %s option not found in %s config file." % (option_name, self.cfg_filename)
+                f"Internal error: {option_name} option not found in {self.cfg_filename} config file."
             )
 
     def _get_gpg_key_fingerprints(self):
@@ -298,7 +293,9 @@ class SystemInfo(object):
         rpm_va, _ = utils.run_subprocess(["rpm", "-Va"], print_output=False)
         output_file = os.path.join(logger.LOG_DIR, log_filename)
         utils.store_content_to_file(output_file, rpm_va)
-        self.logger.info("The 'rpm -Va' output has been stored in the %s file." % output_file)
+        self.logger.info(
+            f"The 'rpm -Va' output has been stored in the {output_file} file."
+        )
 
     def modified_rpm_files_diff(self):
         """Get a list of modified rpm files after the conversion and compare it to the one from before the conversion."""
@@ -311,7 +308,7 @@ class SystemInfo(object):
         pre_rpm_va = utils.get_file_content(pre_rpm_va_log_path, True)
         post_rpm_va_log_path = os.path.join(logger.LOG_DIR, POST_RPM_VA_LOG_FILENAME)
         post_rpm_va = utils.get_file_content(post_rpm_va_log_path, True)
-        modified_rpm_files_diff = "\n".join(
+        if modified_rpm_files_diff := "\n".join(
             difflib.unified_diff(
                 pre_rpm_va,
                 post_rpm_va,
@@ -320,9 +317,7 @@ class SystemInfo(object):
                 n=0,
                 lineterm="",
             )
-        )
-
-        if modified_rpm_files_diff:
+        ):
             self.logger.info(
                 "Comparison of modified rpm files from before and after the conversion:\n%s" % modified_rpm_files_diff
             )
@@ -382,8 +377,7 @@ class SystemInfo(object):
             response = urllib.request.urlopen(CHECK_INTERNET_CONNECTION_ADDRESS)
             response.close()
             self.logger.info(
-                "Successfully connected to address '%s', internet connection seems to be available."
-                % CHECK_INTERNET_CONNECTION_ADDRESS
+                f"Successfully connected to address '{CHECK_INTERNET_CONNECTION_ADDRESS}', internet connection seems to be available."
             )
             return True
         except urllib.error.URLError as err:
@@ -405,7 +399,7 @@ class SystemInfo(object):
         :return: Whether or not the current system has a EUS correspondent in RHEL.
         :rtype: bool
         """
-        return "%s.%s" % (self.version.major, self.version.minor) in EUS_MINOR_VERSIONS
+        return f"{self.version.major}.{self.version.minor}" in EUS_MINOR_VERSIONS
 
     def _is_dbus_running(self):
         """
@@ -451,13 +445,11 @@ class SystemInfo(object):
         distribution_name = self._get_system_name(system_release_content)
         distribution_version = self._get_system_version(system_release_content)
 
-        release_info = {
+        return {
             "id": distribution_id,
             "name": distribution_name,
-            "version": "%s.%s" % (distribution_version.major, distribution_version.minor),
+            "version": f"{distribution_version.major}.{distribution_version.minor}",
         }
-
-        return release_info
 
 
 def _is_systemd_managed_dbus_running():

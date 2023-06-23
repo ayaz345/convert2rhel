@@ -41,9 +41,9 @@ def install_custom_kernel(shell):
     kernel that is not signed by the running OS official vendor.
     """
 
-    assert shell("yum install %s -y" % CUSTOM_KERNEL).returncode == 0
+    assert shell(f"yum install {CUSTOM_KERNEL} -y").returncode == 0
 
-    assert shell("grub2-set-default '%s'" % GRUB_SUBSTRING).returncode == 0
+    assert shell(f"grub2-set-default '{GRUB_SUBSTRING}'").returncode == 0
 
     shell("tmt-reboot -t 600")
 
@@ -53,18 +53,18 @@ def clean_up_custom_kernel(shell):
     Remove the current installed kernel and install the machine default kernel.
     """
     custom_kernel_release = CUSTOM_KERNEL.rsplit("/")[-1].replace(".rpm", "")
-    assert shell("rpm -e %s" % custom_kernel_release).returncode == 0
+    assert shell(f"rpm -e {custom_kernel_release}").returncode == 0
 
     original_kernel = os.popen("rpm -q --last kernel | head -1 | cut -d ' ' -f1").read()
     original_kernel_release = original_kernel.rsplit("/")[-1].replace(".rpm", "").split("-")[-1]
 
     # Install back the CentOS 8.5 original kernel
     if "centos-8.5" in SYSTEM_RELEASE_ENV:
-        assert shell("yum install -y %s" % original_kernel).returncode == 0
+        assert shell(f"yum install -y {original_kernel}").returncode == 0
 
     assert (
         shell(
-            "grubby --set-default /boot/vmlinuz-*%s" % original_kernel_release,
+            f"grubby --set-default /boot/vmlinuz-*{original_kernel_release}"
         ).returncode
         == 0
     )
@@ -75,10 +75,7 @@ def test_custom_kernel(convert2rhel, shell):
     """
     Run the conversion with custom kernel installed on the system.
     """
-    os_vendor = "CentOS"
-    if "oracle" in SYSTEM_RELEASE_ENV:
-        os_vendor = "Oracle"
-
+    os_vendor = "Oracle" if "oracle" in SYSTEM_RELEASE_ENV else "CentOS"
     if os.environ["TMT_REBOOT_COUNT"] == "0":
         install_custom_kernel(shell)
     elif os.environ["TMT_REBOOT_COUNT"] == "1":
@@ -87,7 +84,9 @@ def test_custom_kernel(convert2rhel, shell):
             c2r.expect("Continue with the system conversion?")
             c2r.sendline("y")
 
-            c2r.expect("WARNING - Custom kernel detected. The booted kernel needs to be signed by {}".format(os_vendor))
+            c2r.expect(
+                f"WARNING - Custom kernel detected. The booted kernel needs to be signed by {os_vendor}"
+            )
             c2r.expect(
                 "RHEL_COMPATIBLE_KERNEL.BOOTED_KERNEL_INCOMPATIBLE: The booted kernel version is incompatible with the standard RHEL kernel."
             )

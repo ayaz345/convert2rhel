@@ -18,14 +18,14 @@ def test_missing_os_release(shell, convert2rhel):
     # Install katello package
     pkg_url = "https://satellite.sat.engineering.redhat.com/pub/katello-ca-consumer-latest.noarch.rpm"
     pkg_dst = "/usr/share/convert2rhel/subscription-manager/katello-ca-consumer-latest.noarch.rpm"
-    assert shell("wget --no-check-certificate --output-document {} {}".format(pkg_dst, pkg_url)).returncode == 0
+    assert (
+        shell(
+            f"wget --no-check-certificate --output-document {pkg_dst} {pkg_url}"
+        ).returncode
+        == 0
+    )
 
-    with convert2rhel(
-        "-y --no-rpm-va -k {} -o {} --debug".format(
-            env.str("SATELLITE_KEY"),
-            env.str("SATELLITE_ORG"),
-        )
-    ) as c2r:
+    with convert2rhel(f'-y --no-rpm-va -k {env.str("SATELLITE_KEY")} -o {env.str("SATELLITE_ORG")} --debug') as c2r:
         c2r.expect("WARNING - Some repositories are not available: rhel-8-for-x86_64-baseos-eus-rpms")
         c2r.expect("WARNING - Some repositories are not available: rhel-8-for-x86_64-appstream-eus-rpms")
     assert c2r.exitstatus == 0

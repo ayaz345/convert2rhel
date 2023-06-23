@@ -256,25 +256,19 @@ def test_ensure_compatibility_of_kmods_excluded(
         assert_actions_result(ensure_kernel_modules_compatibility_instance, status="SUCCESS")
 
     get_unsupported_kmods_mocked.assert_called_with(
-        # host kmods
-        set(
-            (
-                unsupported_pkg,
-                "kernel/lib/c.ko.xz",
-                "kernel/lib/a.ko.xz",
-                "kernel/lib/b.ko.xz",
-            )
-        ),
-        # rhel supported kmods
-        set(
-            (
-                "kernel/lib/c.ko",
-                "kernel/lib/b.ko.xz",
-                "kernel/lib/c.ko.xz",
-                "kernel/lib/a.ko.xz",
-                "kernel/lib/a.ko",
-            )
-        ),
+        {
+            unsupported_pkg,
+            "kernel/lib/c.ko.xz",
+            "kernel/lib/a.ko.xz",
+            "kernel/lib/b.ko.xz",
+        },
+        {
+            "kernel/lib/c.ko",
+            "kernel/lib/b.ko.xz",
+            "kernel/lib/c.ko.xz",
+            "kernel/lib/a.ko.xz",
+            "kernel/lib/a.ko",
+        },
     )
     if msg_in_logs and not exception:
         assert any(msg_in_logs in record.message for record in caplog.records)
@@ -354,15 +348,13 @@ def test_get_rhel_supported_kmods(
     )
 
     res = ensure_kernel_modules_compatibility_instance._get_rhel_supported_kmods()
-    assert res == set(
-        (
-            "kernel/lib/a.ko",
-            "kernel/lib/a.ko.xz",
-            "kernel/lib/b.ko.xz",
-            "kernel/lib/c.ko.xz",
-            "kernel/lib/c.ko",
-        )
-    )
+    assert res == {
+        "kernel/lib/a.ko",
+        "kernel/lib/a.ko.xz",
+        "kernel/lib/b.ko.xz",
+        "kernel/lib/c.ko.xz",
+        "kernel/lib/c.ko",
+    }
 
 
 @pytest.mark.parametrize(

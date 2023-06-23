@@ -66,7 +66,7 @@ class PackageUpdates(actions.Action):
             repos_message = (
                 "on the enabled system repositories"
                 if not reposdir
-                else "on repositories defined in the %s folder" % reposdir
+                else f"on repositories defined in the {reposdir} folder"
             )
             logger.warning(
                 "The system has %s package(s) not updated based %s.\n"

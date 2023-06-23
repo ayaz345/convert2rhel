@@ -571,17 +571,16 @@ def test_update_grub_after_conversion(
         spec=utils.run_subprocess,
         side_effect=run_subprocess_side_effect(
             (
-                (
-                    "/usr/sbin/grub2-mkconfig",
-                    "-o",
-                    "%s" % config_path,
-                ),
+                ("/usr/sbin/grub2-mkconfig", "-o", f"{config_path}"),
                 (
                     "output",
                     grub2_mkconfig_exit_code,
                 ),
             ),
-            (("/usr/sbin/grub2-install", "/dev/sda"), ("output", grub2_install_exit_code)),
+            (
+                ("/usr/sbin/grub2-install", "/dev/sda"),
+                ("output", grub2_install_exit_code),
+            ),
         ),
     )
     monkeypatch.setattr(

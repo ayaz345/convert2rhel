@@ -125,7 +125,7 @@ def test_remove_cert(caplog, system_cert_with_target_path):
 
     system_cert_with_target_path.remove()
 
-    assert "Certificate %s removed" % cert_file_path in caplog.messages[-1]
+    assert f"Certificate {cert_file_path} removed" in caplog.messages[-1]
 
 
 @pytest.mark.parametrize(

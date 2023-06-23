@@ -5,7 +5,8 @@ from collections import namedtuple
 import pytest
 
 
-# TODO(danmyway) move to conftest
+
+
 class GetSystemInformation:
     """
     Helper class.
@@ -24,9 +25,12 @@ class GetSystemInformation:
         match_version = re.search(r".+?(\d+)\.(\d+)\D?", system_release_content)
         if not match_version:
             print("not match")
-        version = namedtuple("Version", ["major", "minor"])(int(match_version.group(1)), int(match_version.group(2)))
+        version = namedtuple("Version", ["major", "minor"])(
+            int(match_version[1]), int(match_version[2])
+        )
         distribution = system_release_content.split()[0].lower()
-        system_release = "{}-{}.{}".format(distribution, version.major, version.minor)
+        system_release = f"{distribution}-{version.major}.{version.minor}"
+
 
 
 class AssignRepositoryVariables:
@@ -87,9 +91,7 @@ def test_good_conversion_without_rhsm(shell, convert2rhel):
     """
     prepare_custom_repository(shell)
 
-    with convert2rhel(
-        "-y --no-rpm-va --disable-submgr {} --debug".format(AssignRepositoryVariables.enable_repo_opt), unregister=True
-    ) as c2r:
+    with convert2rhel(f"-y --no-rpm-va --disable-submgr {AssignRepositoryVariables.enable_repo_opt} --debug", unregister=True) as c2r:
         c2r.expect("The repositories passed through the --enablerepo option are all accessible.")
         c2r.sendcontrol("c")
 

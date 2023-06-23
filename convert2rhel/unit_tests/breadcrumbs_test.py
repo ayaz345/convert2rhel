@@ -240,18 +240,27 @@ def test_save_rhsm_facts(pretend_os, monkeypatch, tmpdir, caplog):
     )
 
     breadcrumbs.breadcrumbs._save_rhsm_facts()
-    assert "Writing RHSM custom facts to '%s'" % rhsm_file in caplog.records[-1].message
+    assert (
+        f"Writing RHSM custom facts to '{rhsm_file}'"
+        in caplog.records[-1].message
+    )
 
 
 def test_save_rhsm_facts_no_rhsm_folder(monkeypatch, tmpdir, caplog):
     rhsm_folder = str(tmpdir.join("rhsm").join("facts"))
-    rhsm_file = "%s/convert2rhel.facts" % rhsm_folder
+    rhsm_file = f"{rhsm_folder}/convert2rhel.facts"
     monkeypatch.setattr(breadcrumbs, "RHSM_CUSTOM_FACTS_FOLDER", rhsm_folder)
     monkeypatch.setattr(breadcrumbs, "RHSM_CUSTOM_FACTS_FILE", rhsm_file)
 
     breadcrumbs.breadcrumbs._save_rhsm_facts()
-    assert "No RHSM facts folder found at '%s'." % rhsm_folder in caplog.records[-2].message
-    assert "Writing RHSM custom facts to '%s'" % rhsm_file in caplog.records[-1].message
+    assert (
+        f"No RHSM facts folder found at '{rhsm_folder}'."
+        in caplog.records[-2].message
+    )
+    assert (
+        f"Writing RHSM custom facts to '{rhsm_file}'"
+        in caplog.records[-1].message
+    )
 
 
 def test_save_migration_results(tmpdir, monkeypatch, caplog):
@@ -262,7 +271,10 @@ def test_save_migration_results(tmpdir, monkeypatch, caplog):
 
     breadcrumbs.breadcrumbs._save_migration_results()
 
-    assert "Writing breadcrumbs to '%s'." % migration_results in caplog.records[-1].message
+    assert (
+        f"Writing breadcrumbs to '{migration_results}'."
+        in caplog.records[-1].message
+    )
     assert write_obj_to_array_json_mock.call_count == 1
 
 

@@ -134,18 +134,16 @@ class Breadcrumbs(object):
 
     def _get_formatted_time(self):
         """Set timestamp in format YYYYMMDDHHMMZ"""
-        return datetime.utcnow().isoformat() + "Z"
+        return f"{datetime.utcnow().isoformat()}Z"
 
     def _set_env(self):
         """Catch and set CONVERT2RHEL_ environment variables"""
         env_list = os.environ
-        env_c2r = {}
-
-        # filter just environment variables for C2R
-        for env in env_list:
-            if re.match(r"^CONVERT2RHEL_", env):
-                env_c2r[env] = env_list[env]
-
+        env_c2r = {
+            env: env_list[env]
+            for env in env_list
+            if re.match(r"^CONVERT2RHEL_", env)
+        }
         self.env = env_c2r
 
     def _set_source_os(self):
@@ -193,7 +191,9 @@ class Breadcrumbs(object):
     def _save_rhsm_facts(self):
         """Write the results of the breadcrumbs to the rhsm custom facts file."""
         if not os.path.exists(RHSM_CUSTOM_FACTS_FOLDER):
-            loggerinst.debug("No RHSM facts folder found at '%s'. Creating a new one..." % RHSM_CUSTOM_FACTS_FOLDER)
+            loggerinst.debug(
+                f"No RHSM facts folder found at '{RHSM_CUSTOM_FACTS_FOLDER}'. Creating a new one..."
+            )
             # Using mkdir_p here as the `/etc/rhsm` might not exist at all.
             # Usually this can happen if we fail in the first run and we want to
             # save the custom facts gathered so far, or, if the `--no-rhsm` option

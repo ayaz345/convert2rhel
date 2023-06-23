@@ -49,7 +49,7 @@ def remove_entitlement_certs():
         try:
             os.unlink(cert_path)
         except Exception as e:
-            print("Failed to delete %s. Reason: %s" % (cert_path, e))
+            print(f"Failed to delete {cert_path}. Reason: {e}")
 
 
 @pytest.mark.test_package_download_error
@@ -69,16 +69,11 @@ def test_package_download_error(convert2rhel, shell, yum_cache):
     has a specific method that processes and downloads the packages in the
     transaction.
     """
-    with convert2rhel(
-        "-y --no-rpm-va --serverurl {} --username {} --password {} --pool {} --debug".format(
-            env.str("RHSM_SERVER_URL"),
-            env.str("RHSM_USERNAME"),
-            env.str("RHSM_PASSWORD"),
-            env.str("RHSM_POOL"),
+    with convert2rhel(f'-y --no-rpm-va --serverurl {env.str("RHSM_SERVER_URL")} --username {env.str("RHSM_USERNAME")} --password {env.str("RHSM_PASSWORD")} --pool {env.str("RHSM_POOL")} --debug') as c2r:
+        c2r.expect(f"Validate the {PKGMANAGER} transaction")
+        c2r.expect(
+            f"Adding {SERVER_SUB} packages to the {PKGMANAGER} transaction set."
         )
-    ) as c2r:
-        c2r.expect("Validate the {} transaction".format(PKGMANAGER))
-        c2r.expect("Adding {} packages to the {} transaction set.".format(SERVER_SUB, PKGMANAGER))
 
         if re.match(r"^(centos|oracle)-7$", SYSTEM_RELEASE_ENV):
             # Remove the repomd.xml for rhel-7-server-rpms repo
@@ -102,14 +97,7 @@ def test_transaction_validation_error(convert2rhel, shell, yum_cache):
     found in /etc/pki/entitlement/*.pem to ensure that the
     tool is doing a proper rollback when the transaction is being processed.
     """
-    with convert2rhel(
-        "-y --no-rpm-va --serverurl {} --username {} --password {} --pool {} --debug".format(
-            env.str("RHSM_SERVER_URL"),
-            env.str("RHSM_USERNAME"),
-            env.str("RHSM_PASSWORD"),
-            env.str("RHSM_POOL"),
-        )
-    ) as c2r:
+    with convert2rhel(f'-y --no-rpm-va --serverurl {env.str("RHSM_SERVER_URL")} --username {env.str("RHSM_USERNAME")} --password {env.str("RHSM_PASSWORD")} --pool {env.str("RHSM_POOL")} --debug') as c2r:
         c2r.expect(
             "Downloading and validating the yum transaction set, no modifications to the system will happen this time."
         )

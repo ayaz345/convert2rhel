@@ -270,9 +270,7 @@ def system_release(shell):
 
     if system_name == "ol":
         system_name = "oracle"
-    system_release = f"{system_name}-{system_version}"
-
-    return system_release
+    return f"{system_name}-{system_version}"
 
 
 @pytest.fixture()
@@ -303,9 +301,7 @@ def log_file_data():
     convert2rhel_log_file = "/var/log/convert2rhel/convert2rhel.log"
 
     with open(convert2rhel_log_file, "r") as logfile:
-        log_data = logfile.read()
-
-        return log_data
+        return logfile.read()
 
 
 @pytest.fixture(scope="function")
@@ -336,7 +332,7 @@ def repositories(shell):
     Move all repositories to another location, do the same for EUS if applicable.
     """
     backup_dir = "/tmp/test-backup-release_backup"
-    backup_dir_eus = "%s_eus" % backup_dir
+    backup_dir_eus = f"{backup_dir}_eus"
 
     # Move all repos to other location, so it is not being used
     shell(f"mkdir {backup_dir}")

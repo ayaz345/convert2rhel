@@ -10,11 +10,7 @@ def test_failures_and_skips_in_report(convert2rhel):
 
     Error header, skip header, success header.
     """
-    with convert2rhel(
-        "--no-rpm-va --serverurl {} --username test --password test --pool a_pool --debug".format(
-            env.str("RHSM_SERVER_URL"),
-        )
-    ) as c2r:
+    with convert2rhel(f'--no-rpm-va --serverurl {env.str("RHSM_SERVER_URL")} --username test --password test --pool a_pool --debug') as c2r:
         # We need to get past the data collection acknowledgement.
         c2r.expect("Continue with the system conversion?")
         c2r.sendline("y")
@@ -46,14 +42,7 @@ def test_successful_report(convert2rhel):
 
     And does not contain: Error header, skip header, success header.
     """
-    with convert2rhel(
-        "--no-rpm-va --serverurl {} --username {} --password {} --pool {} --debug".format(
-            env.str("RHSM_SERVER_URL"),
-            env.str("RHSM_USERNAME"),
-            env.str("RHSM_PASSWORD"),
-            env.str("RHSM_POOL"),
-        )
-    ) as c2r:
+    with convert2rhel(f'--no-rpm-va --serverurl {env.str("RHSM_SERVER_URL")} --username {env.str("RHSM_USERNAME")} --password {env.str("RHSM_PASSWORD")} --pool {env.str("RHSM_POOL")} --debug') as c2r:
         # We need to get past the data collection acknowledgement.
         c2r.expect("Continue with the system conversion?")
         c2r.sendline("y")

@@ -91,9 +91,7 @@ def is_secure_boot():
         logger.debug("The mokutil utility for secure boot is not installed. Secure boot is likely not enabled.")
         return False
     # output will be "SecureBoot {enabled|disabled}"
-    if ecode or "enabled" not in stdout:
-        return False
-    return True
+    return not ecode and "enabled" in stdout
 
 
 def _get_partition(directory):
@@ -104,7 +102,7 @@ def _get_partition(directory):
     stdout, ecode = utils.run_subprocess(["/usr/sbin/grub2-probe", "--target=device", directory], print_output=False)
     if ecode or not stdout:
         logger.error("grub2-probe returned %s. Output:\n%s" % (ecode, stdout))
-        raise BootloaderError("Unable to get device information for %s." % directory)
+        raise BootloaderError(f"Unable to get device information for {directory}.")
     return stdout.strip()
 
 
@@ -145,7 +143,7 @@ def _get_blk_device(device):
     output, ecode = utils.run_subprocess(["lsblk", "-spnlo", "name", device], print_output=False)
     if ecode:
         logger.debug("lsblk output:\n-----\n%s\n-----" % output)
-        raise BootloaderError("Unable to get a block device for '%s'." % device)
+        raise BootloaderError(f"Unable to get a block device for '{device}'.")
 
     return output.strip().splitlines()[-1].strip()
 
@@ -166,7 +164,7 @@ def _get_device_number(device):
     )
     if ecode:
         logger.debug("blkid output:\n-----\n%s\n-----" % output)
-        raise BootloaderError("Unable to get information about the '%s' device" % device)
+        raise BootloaderError(f"Unable to get information about the '{device}' device")
     # We are spliting the partition entry number, and we are just taking that
     # output as our desired partition number
     partition_number = output.split("PART_ENTRY_NUMBER=")[-1].replace('"', "")
@@ -277,16 +275,13 @@ class EFIBootInfo(object):
             r"^Boot(?P<bootnum>[a-zA-Z0-9]+)(?P<active>\*?)\s*(?P<label>.*?)\t(?P<bin_source>.*)$"
         )
         for line in bootmgr_output.splitlines():
-            match = regexp_entry.match(line)
-            if not match:
-                continue
-
-            self.entries[match.group("bootnum")] = EFIBootLoader(
-                boot_number=match.group("bootnum"),
-                label=match.group("label"),
-                active="*" in match.group("active"),
-                efi_bin_source=match.group("bin_source"),
-            )
+            if match := regexp_entry.match(line):
+                self.entries[match["bootnum"]] = EFIBootLoader(
+                    boot_number=match["bootnum"],
+                    label=match["label"],
+                    active="*" in match["active"],
+                    efi_bin_source=match["bin_source"],
+                )
         if not self.entries:
             # it's not expected that no entry exists
             raise BootloaderError("UEFI: Unable to detect any UEFI bootloader entry.")
@@ -349,27 +344,31 @@ def _copy_grub_files(required, optional):
     # TODO(pstodulk): check behaviour for efibin from a different dir or with a different name for the possibility of
     #  the different grub content...
     # E.g. if the efibin is located in a different directory, are these two files valid?
-    logger.info("Copying GRUB2 configuration files to the new UEFI directory %s." % RHEL_EFIDIR_CANONICAL_PATH)
+    logger.info(
+        f"Copying GRUB2 configuration files to the new UEFI directory {RHEL_EFIDIR_CANONICAL_PATH}."
+    )
     flag_ok = True
     all_files = required + optional
     for filename in all_files:
         src_path = os.path.join(CENTOS_EFIDIR_CANONICAL_PATH, filename)
         dst_path = os.path.join(RHEL_EFIDIR_CANONICAL_PATH, filename)
         if os.path.exists(dst_path):
-            logger.debug("The %s file already exists. Copying skipped." % dst_path)
+            logger.debug(f"The {dst_path} file already exists. Copying skipped.")
             continue
         if not os.path.exists(src_path):
             if filename in required:
                 # without the required files user should not reboot the system
-                logger.error("Unable to find the original file required for GRUB configuration: %s" % src_path)
+                logger.error(
+                    f"Unable to find the original file required for GRUB configuration: {src_path}"
+                )
                 flag_ok = False
             continue
-        logger.info("Copying '%s' to '%s'" % (src_path, dst_path))
+        logger.info(f"Copying '{src_path}' to '{dst_path}'")
         try:
             shutil.copy2(src_path, dst_path)
         except (OSError, IOError) as err:
             # IOError for py2 and OSError for py3
-            logger.error("I/O error(%s): %s" % (err.errno, err.strerror))
+            logger.error(f"I/O error({err.errno}): {err.strerror}")
             flag_ok = False
     return flag_ok
 
@@ -379,10 +378,10 @@ def _is_rhel_in_boot_entries(efibootinfo, efi_path, label):
     Verify that Red Hat Enterprise Linux is present within the boot
     loader and the bin file matches.
     """
-    for i in efibootinfo.entries.values():
-        if i.label == label and efi_path in i.efi_bin_source:
-            return True
-    return False
+    return any(
+        i.label == label and efi_path in i.efi_bin_source
+        for i in efibootinfo.entries.values()
+    )
 
 
 def _add_rhel_boot_entry(efibootinfo_orig):
@@ -397,24 +396,24 @@ def _add_rhel_boot_entry(efibootinfo_orig):
     dev_number = _get_device_number(get_efi_partition())
     blk_dev = get_grub_device()
 
-    logger.debug("Block device: %s" % str(blk_dev))
-    logger.debug("ESP device number: %s" % str(dev_number))
+    logger.debug(f"Block device: {str(blk_dev)}")
+    logger.debug(f"ESP device number: {str(dev_number)}")
 
     efi_path = None
     for filename in DEFAULT_INSTALLED_EFIBIN_FILENAMES:
         tmp_efi_path = os.path.join(RHEL_EFIDIR_CANONICAL_PATH, filename)
         if os.path.exists(tmp_efi_path):
             efi_path = canonical_path_to_efi_format(tmp_efi_path)
-            logger.debug("The new UEFI binary: %s" % tmp_efi_path)
+            logger.debug(f"The new UEFI binary: {tmp_efi_path}")
             break
     if not efi_path:
         raise BootloaderError("Unable to detect any RHEL UEFI binary file.")
 
-    label = "Red Hat Enterprise Linux %s" % str(systeminfo.system_info.version.major)
-    logger.info("Adding '%s' UEFI bootloader entry." % label)
+    label = f"Red Hat Enterprise Linux {str(systeminfo.system_info.version.major)}"
+    logger.info(f"Adding '{label}' UEFI bootloader entry.")
 
     if _is_rhel_in_boot_entries(efibootinfo_orig, efi_path, label):
-        logger.info("The '%s' UEFI bootloader entry is already present." % label)
+        logger.info(f"The '{label}' UEFI bootloader entry is already present.")
         return efibootinfo_orig
 
     # The new boot entry is being set as first in the boot order
@@ -442,7 +441,7 @@ def _add_rhel_boot_entry(efibootinfo_orig):
     if not _is_rhel_in_boot_entries(efibootinfo_new, efi_path, label):
         raise BootloaderError("Unable to find the new UEFI bootloader entry.")
 
-    logger.info("The '%s' bootloader entry has been added." % label)
+    logger.info(f"The '{label}' bootloader entry has been added.")
     return efibootinfo_new
 
 
@@ -463,15 +462,13 @@ def _remove_orig_boot_entry(efibootinfo_orig, efibootinfo_new):
     orig_boot_entry = efibootinfo_new.entries.get(efibootinfo_orig.current_bootnum, None)
     if not orig_boot_entry:
         logger.info(
-            "The original, currenly used bootloader entry '%s' (%s) has been removed already."
-            % (efibootinfo_orig.current_bootnum, efibootinfo_orig.entries[efibootinfo_orig.current_bootnum].label)
+            f"The original, currenly used bootloader entry '{efibootinfo_orig.current_bootnum}' ({efibootinfo_orig.entries[efibootinfo_orig.current_bootnum].label}) has been removed already."
         )
         return
 
     if orig_boot_entry != efibootinfo_orig.entries[orig_boot_entry.boot_number]:
         logger.warning(
-            "The original, currenly used bootloader entry '%s' (%s) has been modified. Skipping the removal."
-            % (orig_boot_entry.boot_number, orig_boot_entry.label)
+            f"The original, currenly used bootloader entry '{orig_boot_entry.boot_number}' ({orig_boot_entry.label}) has been modified. Skipping the removal."
         )
         return
 
@@ -499,8 +496,7 @@ def _remove_orig_boot_entry(efibootinfo_orig, efibootinfo_new):
         logger.warning("The removal of the original, currenly used UEFI bootloader entry has failed.")
         return
     logger.info(
-        "The removal of the original, currenly used UEFI bootloader entry '%s' (%s) has been successful."
-        % (orig_boot_entry.boot_number, orig_boot_entry.label)
+        f"The removal of the original, currenly used UEFI bootloader entry '{orig_boot_entry.boot_number}' ({orig_boot_entry.label}) has been successful."
     )
 
 
@@ -571,10 +567,10 @@ def post_ponr_set_efi_configuration():
     for filename in DEFAULT_INSTALLED_EFIBIN_FILENAMES:
         efi_path = os.path.join(RHEL_EFIDIR_CANONICAL_PATH, filename)
         if os.path.exists(efi_path):
-            logger.info("UEFI binary found: %s" % efi_path)
+            logger.info(f"UEFI binary found: {efi_path}")
             new_default_efibin = efi_path
             break
-        logger.debug("UEFI binary %s not found. Checking next possibility..." % efi_path)
+        logger.debug(f"UEFI binary {efi_path} not found. Checking next possibility...")
     if not new_default_efibin:
         _log_critical_error("None of the expected RHEL UEFI binaries exist.")
     if not os.path.exists("/usr/sbin/efibootmgr"):
@@ -637,7 +633,7 @@ def update_grub_after_conversion():
         # Relevant bugzilla for this: https://bugzilla.redhat.com/show_bug.cgi?id=1917213
         logger.debug("Detected BIOS setup, proceeding to install the new GRUB2 images.")
         blk_device = get_grub_device()
-        logger.debug("Device to install the GRUB2 image to: '%s'" % blk_device)
+        logger.debug(f"Device to install the GRUB2 image to: '{blk_device}'")
 
         output, ret_code = utils.run_subprocess(["/usr/sbin/grub2-install", blk_device], print_output=False)
         logger.debug("Output of the grub2-install call:\n%s" % output)

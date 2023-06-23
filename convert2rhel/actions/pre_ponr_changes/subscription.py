@@ -72,7 +72,7 @@ class PreSubscription(actions.Action):
             self.set_result(
                 status="ERROR",
                 error_id="UNABLE_TO_REGISTER",
-                message="Failed to unregister the system: %s" % e,
+                message=f"Failed to unregister the system: {e}",
             )
 
 
@@ -117,7 +117,7 @@ class SubscribeSystem(actions.Action):
             self.set_result(
                 status="ERROR",
                 error_id="MISSING_SUBSCRIPTION_MANAGER_BINARY",
-                message="Failed to execute command: %s" % e,
+                message=f"Failed to execute command: {e}",
             )
         except SystemExit as e:
             # TODO(r0x0d): This should be refactored to handle each case
@@ -133,5 +133,5 @@ class SubscribeSystem(actions.Action):
             self.set_result(
                 status="ERROR",
                 error_id="MISSING_REGISTRATION_COMBINATION",
-                message="One or more combinations were missing for subscription-manager parameters: %s" % e,
+                message=f"One or more combinations were missing for subscription-manager parameters: {e}",
             )

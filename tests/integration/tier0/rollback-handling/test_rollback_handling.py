@@ -33,11 +33,11 @@ def install_packages(shell, packages):
     Install packages that cause trouble/needs to be checked during/after rollback.
     Some packages were removed during the conversion and were not backed up/installed back when the rollback occurred.
     """
-    packages_to_remove_at_cleanup = []
-    for package in packages:
-        if f"{package} is not installed" in shell(f"rpm -q {package}").output:
-            packages_to_remove_at_cleanup.append(package)
-
+    packages_to_remove_at_cleanup = [
+        package
+        for package in packages
+        if f"{package} is not installed" in shell(f"rpm -q {package}").output
+    ]
     # Run this only once as package managers take too long to figure out
     # dependencies and install the packages.
     print(f"PREP: Setting up {','.join(packages_to_remove_at_cleanup)}")
@@ -90,14 +90,7 @@ def test_proper_rhsm_clean_up(shell, convert2rhel):
     """
     packages_to_remove_at_cleanup = install_packages(shell, assign_packages())
 
-    with convert2rhel(
-        "--serverurl {} --username {} --password {} --pool {} --debug --no-rpm-va".format(
-            env.str("RHSM_SERVER_URL"),
-            env.str("RHSM_USERNAME"),
-            env.str("RHSM_PASSWORD"),
-            env.str("RHSM_POOL"),
-        )
-    ) as c2r:
+    with convert2rhel(f'--serverurl {env.str("RHSM_SERVER_URL")} --username {env.str("RHSM_USERNAME")} --password {env.str("RHSM_PASSWORD")} --pool {env.str("RHSM_POOL")} --debug --no-rpm-va') as c2r:
         c2r.expect("Continue with the system conversion?")
         c2r.sendline("y")
 
@@ -152,14 +145,7 @@ def test_terminate_registration_start(convert2rhel):
     Send termination signal immediately after c2r tries the registration.
     Verify that c2r goes successfully through the rollback.
     """
-    with convert2rhel(
-        "--debug -y --no-rpm-va --serverurl {} --username {} --password {}".format(
-            env.str("RHSM_SERVER_URL"),
-            env.str("RHSM_USERNAME"),
-            env.str("RHSM_PASSWORD"),
-        ),
-        unregister=True,
-    ) as c2r:
+    with convert2rhel(f'--debug -y --no-rpm-va --serverurl {env.str("RHSM_SERVER_URL")} --username {env.str("RHSM_USERNAME")} --password {env.str("RHSM_PASSWORD")}', unregister=True) as c2r:
         if c2r.expect("Registering the system using subscription-manager") == 0:
             terminate_and_assert_good_rollback(c2r)
 
@@ -171,14 +157,7 @@ def test_terminate_registration_success(convert2rhel):
     Verify that c2r goes successfully through the rollback.
     Verify that the subscription is auto-attached.
     """
-    with convert2rhel(
-        "--debug -y --no-rpm-va --serverurl {} --username {} --password {}".format(
-            env.str("RHSM_SERVER_URL"),
-            env.str("RHSM_USERNAME"),
-            env.str("RHSM_PASSWORD"),
-        ),
-        unregister=True,
-    ) as c2r:
+    with convert2rhel(f'--debug -y --no-rpm-va --serverurl {env.str("RHSM_SERVER_URL")} --username {env.str("RHSM_USERNAME")} --password {env.str("RHSM_PASSWORD")}', unregister=True) as c2r:
         c2r.expect("Registering the system using subscription-manager")
         assert c2r.expect("System registration succeeded.", timeout=180) == 0
         # Verify auto-attachment of the subscription
@@ -205,6 +184,6 @@ def test_terminate_on_password_prompt(convert2rhel):
     Send termination signal on the user prompt for password.
     Verify that c2r goes successfully through the rollback.
     """
-    with convert2rhel("--debug -y --no-rpm-va --username {}".format(env.str("RHSM_USERNAME"))) as c2r:
+    with convert2rhel(f'--debug -y --no-rpm-va --username {env.str("RHSM_USERNAME")}') as c2r:
         if c2r.expect("Password:") == 0:
             terminate_and_assert_good_rollback(c2r)

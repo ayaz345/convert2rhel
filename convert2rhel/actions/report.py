@@ -107,8 +107,7 @@ def summary(results, include_all_reports=False, with_colors=True):
     last_status = ""
     for action_id, result in results:
         if last_status != result["status"]:
-            report.append("")
-            report.append(format_report_section_heading(result["status"]))
+            report.extend(("", format_report_section_heading(result["status"])))
             last_status = result["status"]
 
         entry = format_action_status_message(result["status"], action_id, result["error_id"], result["message"])
@@ -137,5 +136,6 @@ def format_report_section_heading(status_code):
     status_header = _STATUS_HEADER[status_code]
     highlight = "=" * 10
 
-    heading = "{highlight} {status_header} {highlight}".format(highlight=highlight, status_header=status_header)
-    return heading
+    return "{highlight} {status_header} {highlight}".format(
+        highlight=highlight, status_header=status_header
+    )

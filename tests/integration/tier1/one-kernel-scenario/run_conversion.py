@@ -38,7 +38,7 @@ def test_run_conversion_using_custom_repos(shell, convert2rhel):
     # not being updated. Mitigate the issues by exporting CONVERT2RHEL_ALLOW_UNAVAILABLE_KMODS.
     os.environ["CONVERT2RHEL_ALLOW_UNAVAILABLE_KMODS"] = "1"
 
-    with convert2rhel("-y --no-rpm-va --disable-submgr {} --debug".format(enable_repo_opt)) as c2r:
+    with convert2rhel(f"-y --no-rpm-va --disable-submgr {enable_repo_opt} --debug") as c2r:
         c2r.expect("Conversion successful!")
 
     assert c2r.exitstatus == 0
@@ -46,11 +46,11 @@ def test_run_conversion_using_custom_repos(shell, convert2rhel):
     # replace url in yum.repos.d rhel repo to the original one
     original_url = "baseurl = https://rhsm-pulp.corp.redhat.com/content/dist/rhel/server/7/\$releasever/\$basearch/os/"
     new_url = "baseurl=https://rhsm-pulp.corp.redhat.com/content/dist/rhel/server/7/7.9/x86_64/os/"
-    shell('sed -i "s+{}+{}+g" /etc/yum.repos.d/rhel7.repo'.format(new_url, original_url))
+    shell(f'sed -i "s+{new_url}+{original_url}+g" /etc/yum.repos.d/rhel7.repo')
 
     enable_repo_opt = (
         "--enable rhel-7-server-rpms --enable rhel-7-server-optional-rpms --enable rhel-7-server-extras-rpms"
     )
-    shell("yum-config-manager {}".format(enable_repo_opt))
+    shell(f"yum-config-manager {enable_repo_opt}")
 
     assert shell("yum install -y python3 --enablerepo=*").returncode == 0

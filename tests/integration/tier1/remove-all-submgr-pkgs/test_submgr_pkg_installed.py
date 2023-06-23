@@ -7,14 +7,7 @@ def test_remove_all_submgr_pkgs(shell, convert2rhel):
     And that the system is unregistered before that.
     """
 
-    with convert2rhel(
-        "-y --no-rpm-va --serverurl {} --username {} --password {} --pool {} --debug".format(
-            env.str("RHSM_SERVER_URL"),
-            env.str("RHSM_USERNAME"),
-            env.str("RHSM_PASSWORD"),
-            env.str("RHSM_POOL"),
-        )
-    ) as c2r:
+    with convert2rhel(f'-y --no-rpm-va --serverurl {env.str("RHSM_SERVER_URL")} --username {env.str("RHSM_USERNAME")} --password {env.str("RHSM_PASSWORD")} --pool {env.str("RHSM_POOL")} --debug') as c2r:
         # Check that the system is unregistered before removing the sub-mgr
         c2r.expect("Calling command 'subscription-manager unregister'")
 

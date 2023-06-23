@@ -223,47 +223,21 @@ def test_summary_ordering(results, include_all_reports, expected_results, caplog
     # Prove that all the messages occurred and in the right order.
     message = caplog.records[-1].message
 
-    pattern = []
-    for entry in expected_results:
-        pattern.append(entry)
+    pattern = list(expected_results)
     pattern = ".*".join(pattern)
 
     assert re.search(pattern, message, re.DOTALL)
 
 
-@pytest.mark.parametrize(
-    ("results", "expected"),
-    (
-        (
-            {"ErrorAction": dict(status=STATUS_CODE["ERROR"], error_id="ERROR", message="ERROR MESSAGE")},
-            "%s(ERROR) ErrorAction.ERROR: ERROR MESSAGE%s" % (bcolors.FAIL, bcolors.ENDC),
-        ),
-        (
-            {
+@pytest.mark.parametrize(("results", "expected"), (({"ErrorAction": dict(status=STATUS_CODE["ERROR"], error_id="ERROR", message="ERROR MESSAGE")}, f"{bcolors.FAIL}(ERROR) ErrorAction.ERROR: ERROR MESSAGE{bcolors.ENDC}"), ({
                 "OverridableAction": dict(
                     status=STATUS_CODE["OVERRIDABLE"], error_id="OVERRIDABLE", message="OVERRIDABLE MESSAGE"
                 )
-            },
-            "%s(OVERRIDABLE) OverridableAction.OVERRIDABLE: OVERRIDABLE MESSAGE%s" % (bcolors.FAIL, bcolors.ENDC),
-        ),
-        (
-            {"SkipAction": dict(status=STATUS_CODE["SKIP"], error_id="SKIP", message="SKIP MESSAGE")},
-            "%s(SKIP) SkipAction.SKIP: SKIP MESSAGE%s" % (bcolors.FAIL, bcolors.ENDC),
-        ),
-        (
-            {"WarningAction": dict(status=STATUS_CODE["WARNING"], error_id="WARNING", message="WARNING MESSAGE")},
-            "%s(WARNING) WarningAction.WARNING: WARNING MESSAGE%s" % (bcolors.WARNING, bcolors.ENDC),
-        ),
-        (
-            {
+            }, f"{bcolors.FAIL}(OVERRIDABLE) OverridableAction.OVERRIDABLE: OVERRIDABLE MESSAGE{bcolors.ENDC}"), ({"SkipAction": dict(status=STATUS_CODE["SKIP"], error_id="SKIP", message="SKIP MESSAGE")}, f"{bcolors.FAIL}(SKIP) SkipAction.SKIP: SKIP MESSAGE{bcolors.ENDC}"), ({"WarningAction": dict(status=STATUS_CODE["WARNING"], error_id="WARNING", message="WARNING MESSAGE")}, f"{bcolors.WARNING}(WARNING) WarningAction.WARNING: WARNING MESSAGE{bcolors.ENDC}"), ({
                 "SuccessfulAction": dict(
                     status=STATUS_CODE["SUCCESS"], error_id="SUCCESSFUL", message="SUCCESSFUL MESSAGE"
                 )
-            },
-            "%s(SUCCESS) SuccessfulAction.SUCCESSFUL: SUCCESSFUL MESSAGE%s" % (bcolors.OKGREEN, bcolors.ENDC),
-        ),
-    ),
-)
+            }, f"{bcolors.OKGREEN}(SUCCESS) SuccessfulAction.SUCCESSFUL: SUCCESSFUL MESSAGE{bcolors.ENDC}")))
 def test_summary_colors(results, expected, caplog):
     report.summary(results, include_all_reports=True, with_colors=True)
     assert expected in caplog.records[-1].message

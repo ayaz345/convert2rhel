@@ -65,15 +65,7 @@ def test_inhibit_if_custom_module_loaded(kmod_in_different_directory, convert2rh
     This test verifies that rpmquery for detecting supported kernel modules in RHEL works correctly.
     If custom module is loaded the conversion has to be inhibited.
     """
-    with convert2rhel(
-        "-y --no-rpm-va --serverurl {} --username {} --password {} --pool {} --debug".format(
-            env.str("RHSM_SERVER_URL"),
-            env.str("RHSM_USERNAME"),
-            env.str("RHSM_PASSWORD"),
-            env.str("RHSM_POOL"),
-        ),
-        unregister=True,
-    ) as c2r:
+    with convert2rhel(f'-y --no-rpm-va --serverurl {env.str("RHSM_SERVER_URL")} --username {env.str("RHSM_USERNAME")} --password {env.str("RHSM_PASSWORD")} --pool {env.str("RHSM_POOL")} --debug', unregister=True) as c2r:
         c2r.expect(
             "ENSURE_KERNEL_MODULES_COMPATIBILITY.UNSUPPORTED_KERNEL_MODULES: The following loaded kernel modules are not available in RHEL"
         )
@@ -104,15 +96,7 @@ def test_do_not_inhibit_if_module_is_not_loaded(shell, convert2rhel):
     shell("depmod")
 
     # If custom module is not loaded the conversion should not be inhibited.
-    with convert2rhel(
-        "--no-rpm-va --serverurl {} --username {} --password {} --pool {} --debug".format(
-            env.str("RHSM_SERVER_URL"),
-            env.str("RHSM_USERNAME"),
-            env.str("RHSM_PASSWORD"),
-            env.str("RHSM_POOL"),
-        ),
-        unregister=True,
-    ) as c2r:
+    with convert2rhel(f'--no-rpm-va --serverurl {env.str("RHSM_SERVER_URL")} --username {env.str("RHSM_USERNAME")} --password {env.str("RHSM_PASSWORD")} --pool {env.str("RHSM_POOL")} --debug', unregister=True) as c2r:
         c2r.expect("Continue with the system conversion?")
         c2r.sendline("y")
 
@@ -157,15 +141,7 @@ def test_tainted_kernel_inhibitor(custom_kmod, convert2rhel):
     We need to install specific kernel packages to build own custom kernel module.
     """
 
-    with convert2rhel(
-        "-y --no-rpm-va --serverurl {} --username {} --password {} --pool {} --debug".format(
-            env.str("RHSM_SERVER_URL"),
-            env.str("RHSM_USERNAME"),
-            env.str("RHSM_PASSWORD"),
-            env.str("RHSM_POOL"),
-        ),
-        unregister=True,
-    ) as c2r:
+    with convert2rhel(f'-y --no-rpm-va --serverurl {env.str("RHSM_SERVER_URL")} --username {env.str("RHSM_USERNAME")} --password {env.str("RHSM_PASSWORD")} --pool {env.str("RHSM_POOL")} --debug', unregister=True) as c2r:
         c2r.expect("Tainted kernel modules detected")
         c2r.sendcontrol("c")
 
@@ -180,14 +156,7 @@ def test_envar_overrides_unsupported_module_loaded(kmod_in_different_directory, 
     The environment variable is set through the test metadata.
     """
 
-    with convert2rhel(
-        "--no-rpm-va --serverurl {} --username {} --password {} --pool {} --debug".format(
-            env.str("RHSM_SERVER_URL"),
-            env.str("RHSM_USERNAME"),
-            env.str("RHSM_PASSWORD"),
-            env.str("RHSM_POOL"),
-        )
-    ) as c2r:
+    with convert2rhel(f'--no-rpm-va --serverurl {env.str("RHSM_SERVER_URL")} --username {env.str("RHSM_USERNAME")} --password {env.str("RHSM_PASSWORD")} --pool {env.str("RHSM_POOL")} --debug') as c2r:
         c2r.expect("Continue with the system conversion?")
         c2r.sendline("y")
 

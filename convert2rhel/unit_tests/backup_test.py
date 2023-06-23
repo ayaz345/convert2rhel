@@ -157,7 +157,7 @@ def test_changed_pkgs_control_remove_installed_pkgs(monkeypatch, caplog):
     control = backup.ChangedRPMPackagesController()
     control.installed_pkgs = removed_pkgs
     control._remove_installed_pkgs()
-    assert "Removing package: %s" % removed_pkgs[0] in caplog.records[-1].message
+    assert f"Removing package: {removed_pkgs[0]}" in caplog.records[-1].message
 
 
 def test_changed_pkgs_control_install_removed_pkgs(monkeypatch):
@@ -333,7 +333,7 @@ def test_restorable_package_backup_without_dir(monkeypatch, tmpdir, caplog):
     rp = backup.RestorablePackage(pkgname="pkg-1")
     rp.backup()
 
-    assert "Can't access %s" % backup_dir in caplog.records[-1].message
+    assert f"Can't access {backup_dir}" in caplog.records[-1].message
 
 
 def test_changedrpms_packages_controller_install_local_rpms(monkeypatch, caplog):
@@ -354,7 +354,7 @@ def test_changedrpms_packages_controller_install_local_rpms(monkeypatch, caplog)
 
     assert result == False
     assert run_subprocess_mock.call_count == 1
-    assert "Couldn't install %s packages." % pkgs[0] in caplog.records[-1].message
+    assert f"Couldn't install {pkgs[0]} packages." in caplog.records[-1].message
 
 
 def test_changedrpms_packages_controller_install_local_rpms_system_exit(monkeypatch, caplog):
@@ -375,7 +375,10 @@ def test_changedrpms_packages_controller_install_local_rpms_system_exit(monkeypa
         control._install_local_rpms(pkgs_to_install=pkgs, replace=False, critical=True)
 
     assert run_subprocess_mock.call_count == 1
-    assert "Error: Couldn't install %s packages." % pkgs[0] in caplog.records[-1].message
+    assert (
+        f"Error: Couldn't install {pkgs[0]} packages."
+        in caplog.records[-1].message
+    )
 
 
 @pytest.mark.parametrize(
@@ -593,7 +596,7 @@ class TestRestorableRpmKey:
         # Check that we did not call rpm to import the key
         # Omit the first call because that is the call we performed to setup the test.
         for call in run_subprocess_with_empty_rpmdb.called_with[1:]:
-            assert not (call[0][0] == "rpm" and "--import" in call[0])
+            assert call[0][0] != "rpm" or "--import" not in call[0]
 
         # Check that the key is installed and we show that it was previously installed
         assert rpm_key.enabled is True
@@ -619,7 +622,11 @@ class TestRestorableRpmKey:
 
         # Check that the beginning of the run_subprocess call starts with the command to remove
         # the key (The arguments our fixture has added to use the empty rpmdb come after that)
-        assert run_subprocess_with_empty_rpmdb.called_with[-1][0][0][0:3] == ["rpm", "-e", "gpg-pubkey-fd431d51"]
+        assert run_subprocess_with_empty_rpmdb.called_with[-1][0][0][:3] == [
+            "rpm",
+            "-e",
+            "gpg-pubkey-fd431d51",
+        ]
 
         # Check that we actually removed the key from the rpmdb
         output, status = run_subprocess_with_empty_rpmdb(["rpm", "-qa", "gpg-pubkey"])

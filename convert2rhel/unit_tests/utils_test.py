@@ -134,8 +134,8 @@ class TestUtils(unittest.TestCase):
             [
                 "yumdownloader",
                 "-v",
-                "--destdir=%s" % dest,
-                "--setopt=reposdir=%s" % reposdir,
+                f"--destdir={dest}",
+                f"--setopt=reposdir={reposdir}",
                 "--disablerepo=*",
                 "--enablerepo=repo1",
                 "--enablerepo=repo2",
@@ -225,13 +225,14 @@ def test_run_cmd_in_pty_simple(command, expected_output, expected_code, capfd, m
 
 
 def test_run_cmd_in_pty_expect_script(capfd):
-    if sys.version_info < (3,):
-        prompt_cmd = "raw_input"
-    else:
-        prompt_cmd = "input"
+    prompt_cmd = "raw_input" if sys.version_info < (3,) else "input"
     with capfd.disabled():
         output, code = utils.run_cmd_in_pty(
-            [sys.executable, "-c", 'print(%s("Ask for password: "))' % prompt_cmd],
+            [
+                sys.executable,
+                "-c",
+                f'print({prompt_cmd}("Ask for password: "))',
+            ],
             expect_script=(("password: *", "Foo bar\n"),),
         )
 
@@ -440,6 +441,9 @@ class TestFindKeys:
             utils.find_keyid(gpg_key)
 
     def test_find_keyid_gpg_bad_keyring(self, monkeypatch):
+
+
+
         class MockedRunSubProcess(object):
             def __init__(self):
                 self.called = 0
@@ -447,10 +451,8 @@ class TestFindKeys:
             def __call__(self, *args, **kwargs):
                 # Fail on the second call
                 self.called += 1
-                if self.called == 2:
-                    return ("", 1)
+                return ("", 1) if self.called == 2 else real_run_subprocess(*args, **kwargs)
 
-                return real_run_subprocess(*args, **kwargs)
 
         real_run_subprocess = utils.run_subprocess
         monkeypatch.setattr(utils, "run_subprocess", MockedRunSubProcess())
@@ -461,6 +463,9 @@ class TestFindKeys:
             utils.find_keyid(self.gpg_key)
 
     def test_find_keyid_gpg_bad_keyring_and_race_deleting_tmp_dir(self, monkeypatch):
+
+
+
         class MockedRunSubProcess(object):
             def __init__(self):
                 self.called = 0
@@ -468,10 +473,8 @@ class TestFindKeys:
             def __call__(self, *args, **kwargs):
                 # Fail on the second call
                 self.called += 1
-                if self.called == 2:
-                    return ("", 1)
+                return ("", 1) if self.called == 2 else real_run_subprocess(*args, **kwargs)
 
-                return real_run_subprocess(*args, **kwargs)
 
         real_run_subprocess = utils.run_subprocess
         monkeypatch.setattr(utils, "run_subprocess", MockedRunSubProcess())
@@ -485,6 +488,9 @@ class TestFindKeys:
             utils.find_keyid(self.gpg_key)
 
     def test_find_keyid_no_gpg_output(self, monkeypatch):
+
+
+
         class MockedRunSubProcess(object):
             def __init__(self):
                 self.called = 0
@@ -492,17 +498,13 @@ class TestFindKeys:
             def __call__(self, *args, **kwargs):
                 # Fail on the second call
                 self.called += 1
-                if self.called == 2:
-                    return ("", 0)
+                return ("", 0) if self.called == 2 else real_run_subprocess(*args, **kwargs)
 
-                return real_run_subprocess(*args, **kwargs)
 
         real_run_subprocess = utils.run_subprocess
         monkeypatch.setattr(utils, "run_subprocess", MockedRunSubProcess())
 
-        with pytest.raises(
-            utils.ImportGPGKeyError, match="Unable to determine the gpg keyid for the rpm key file: %s" % self.gpg_key
-        ):
+        with pytest.raises(utils.ImportGPGKeyError, match=f"Unable to determine the gpg keyid for the rpm key file: {self.gpg_key}"):
             utils.find_keyid(self.gpg_key)
 
     @pytest.mark.parametrize(
@@ -521,20 +523,16 @@ class TestFindKeys:
 
 
 @pytest.mark.parametrize("dir_name", ("/existing", "/nonexisting", None))
-# TODO change to tmpdir fixture
 def test_remove_tmp_dir(monkeypatch, dir_name, caplog, tmpdir):
-    if dir_name == "/existing":
-        path = str(tmpdir.mkdir(dir_name))
-    else:
-        path = dir_name
+    path = str(tmpdir.mkdir(dir_name)) if dir_name == "/existing" else dir_name
     monkeypatch.setattr(utils, "TMP_DIR", value=path)
 
     utils.remove_tmp_dir()
 
     if dir_name == "/existing":
-        assert "Temporary folder " + str(path) + " removed" in caplog.text
+        assert f"Temporary folder {str(path)} removed" in caplog.text
     elif dir_name == "/nonexisting":
-        assert "Failed removing temporary folder " + dir_name in caplog.text
+        assert f"Failed removing temporary folder {dir_name}" in caplog.text
     else:
         assert "TypeError error while removing temporary folder " in caplog.text
 
@@ -912,7 +910,7 @@ class RunAsChildProcessFunctions:
 
     @staticmethod
     def return_with_both_args_and_kwargs(args, kwargs):
-        return "%s, %s" % (args, kwargs)
+        return f"{args}, {kwargs}"
 
     @staticmethod
     def raise_bare_system_exit_exception():
